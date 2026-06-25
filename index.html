@@ -36,6 +36,10 @@
   .day-ico { font-size: 16px; }
   .day-nm { font-size: 10px; color: #666; margin-top: 2px; font-weight: 600; }
   .day-btn-active .day-nm { color: var(--dc); }
+  .day-btn-swap-src { border-color: #F0A500 !important; background: #F0A50022 !important; }
+  .day-btn-swap-target { border-color: #27AE60 !important; background: #27AE6022 !important; animation: pulse 0.8s infinite alternate; }
+  @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
+  .swap-day-hint { font-size: 11px; color: #F0A500; text-align: center; padding: 6px 16px; background: #F0A50011; border-bottom: 1px solid #F0A50033; flex-shrink: 0; }
 
   .sess-hdr { padding: 14px 20px; border-bottom: 1px solid #2A2A30; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   .sess-ico { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
@@ -89,7 +93,24 @@
   .fld-inp { width: 100%; background: #1E1E24; border: 1px solid #2A2A30; border-radius: 8px; color: #E8E6E1; padding: 10px 12px; font-size: 15px; }
   .run-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
   .notes-ta { width: 100%; background: #1E1E24; border: 1px solid #2A2A30; border-radius: 8px; color: #E8E6E1; padding: 10px 12px; font-size: 13px; min-height: 70px; resize: vertical; }
-  .save-btn { width: 100%; margin-top: 20px; padding: 14px; border-radius: 10px; border: none; color: #fff; font-size: 15px; font-weight: 700; transition: background 0.3s; }
+  .auto-saved-indicator { margin-top: 20px; padding: 12px; border-radius: 10px; background: #1A2A1A; border: 1px solid #27AE6044; color: #27AE60; font-size: 13px; font-weight: 600; text-align: center; }
+
+  /* Rest timer overlay */
+  .rest-overlay { position: fixed; bottom: 0; left: 0; right: 0; background: #18181C; border-top: 2px solid #2A2A30; padding: 16px 20px 24px; display: flex; align-items: center; gap: 14px; z-index: 100; transform: translateY(100%); transition: transform 0.3s ease; box-shadow: 0 -4px 20px #00000088; }
+  .rest-overlay.active { transform: translateY(0); }
+  .rest-ring { position: relative; width: 60px; height: 60px; flex-shrink: 0; }
+  .rest-ring svg { transform: rotate(-90deg); width: 60px; height: 60px; }
+  .rest-ring-track { fill: none; stroke: #2A2A30; stroke-width: 5; }
+  .rest-ring-fill { fill: none; stroke: #4A9EBF; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.9s linear; }
+  .rest-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #E8E6E1; }
+  .rest-info { flex: 1; min-width: 0; }
+  .rest-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .rest-ex-name { font-size: 13px; font-weight: 600; color: #E8E6E1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rest-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .rest-skip { background: #C0392B22; border: 1px solid #C0392B55; color: #C0392B; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .rest-add { background: #4A9EBF22; border: 1px solid #4A9EBF55; color: #4A9EBF; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .rest-dur-cfg { width: 44px; background: #0F0F12; border: 1px solid #2A2A30; border-radius: 5px; color: #4A9EBF; padding: 4px 6px; font-size: 12px; font-weight: 700; text-align: center; }
+  .rest-inp { width: 52px; background: #0F0F12; border: 1px solid #2A2A30; border-radius: 5px; color: #4A9EBF; padding: 4px 6px; font-size: 12px; font-weight: 700; text-align: center; }
 
   .hist-empty { padding: 40px; text-align: center; color: #555; }
   .hist-empty-ico { font-size: 32px; margin-bottom: 12px; }
@@ -202,6 +223,7 @@ let S = {
   histWeeks:sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse(),
   swapIdx:null, histSel:null, histLog:null, saved:false,
   dragSrcIdx:null,
+  daySwapSrc:null,
 };
 
 function getLog() {
@@ -210,21 +232,11 @@ function getLog() {
 }
 function mutLog(fn) {
   const l=JSON.parse(JSON.stringify(getLog()));
-  fn(l); S.logs={...S.logs,[S.day]:l}; S.saved=false;
-}
-function saveLog() {
-  S.logs={...S.logs,[S.day]:getLog()};
+  fn(l); S.logs={...S.logs,[S.day]:l};
   sSet(`logs:${WK}`,S.logs);
   S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
-  S.saved=true; renderSaveBtn();
-  setTimeout(()=>{S.saved=false;renderSaveBtn();},2000);
 }
-function renderSaveBtn() {
-  const btn=document.getElementById("save-btn"); if(!btn) return;
-  const p=PLAN[S.day];
-  btn.style.background=S.saved?"#27AE60":p.color;
-  btn.textContent=S.saved?"✓ Saved":"Save Session";
-}
+function renderSaveBtn() {} // no-op, kept for safety
 
 function repsCol(r,rl,rh){
   if(!r||!rl) return "#E8E6E1";
@@ -331,6 +343,67 @@ function setupDrag(handle, cardEl, ei) {
   cardEl.setAttribute("draggable","false");
 }
 
+
+// ── Rest Timer ────────────────────────────────────────────────────────────────
+let restTimer = { interval: null, remaining: 0, total: 0, exName: '' };
+const CIRC = 2 * Math.PI * 26; // circumference for r=26
+
+function startRest(exName, seconds) {
+  clearInterval(restTimer.interval);
+  restTimer.exName = exName;
+  restTimer.total = seconds;
+  restTimer.remaining = seconds;
+  updateRestUI();
+  document.getElementById('rest-overlay').classList.add('active');
+  document.getElementById('rest-ex-label').textContent = exName || 'Next set';
+  document.getElementById('rest-dur-inp').value = seconds;
+  restTimer.interval = setInterval(() => {
+    restTimer.remaining--;
+    if (restTimer.remaining <= 0) {
+      restTimer.remaining = 0;
+      clearInterval(restTimer.interval);
+      updateRestUI();
+      // Vibrate if supported
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      setTimeout(restSkip, 1200);
+    } else {
+      updateRestUI();
+    }
+  }, 1000);
+}
+
+function updateRestUI() {
+  const el = document.getElementById('rest-countdown');
+  const arc = document.getElementById('rest-arc');
+  if (!el || !arc) return;
+  el.textContent = restTimer.remaining;
+  const pct = restTimer.total > 0 ? restTimer.remaining / restTimer.total : 0;
+  arc.style.strokeDasharray = CIRC;
+  arc.style.strokeDashoffset = CIRC * (1 - pct);
+  // Colour shifts red as time runs out
+  arc.style.stroke = restTimer.remaining <= 10 ? '#C0392B' : restTimer.remaining <= 20 ? '#F0A500' : '#4A9EBF';
+}
+
+function restSkip() {
+  clearInterval(restTimer.interval);
+  document.getElementById('rest-overlay').classList.remove('active');
+}
+
+function restAdd30() {
+  restTimer.remaining += 30;
+  restTimer.total += 30;
+  updateRestUI();
+}
+
+// Sync rest duration input
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('rest-dur-inp');
+  if (inp) inp.addEventListener('change', () => {
+    const v = parseInt(inp.value);
+    if (v > 0) { restTimer.total = v; restTimer.remaining = v; updateRestUI(); }
+  });
+});
+
 // ── Main render ───────────────────────────────────────────────────────────────
 function render() {
   const app=document.getElementById("app");
@@ -351,15 +424,48 @@ function render() {
 
   if(S.view==="history"||S.view==="hist-detail"){renderHistory(app);return;}
 
+  // Day swap hint bar
+  if(S.daySwapSrc) {
+    const hint=mkT("div","swap-day-hint",`Tap another day to swap with ${S.daySwapSrc} · Tap ${S.daySwapSrc} again to cancel`);
+    app.appendChild(hint);
+  }
+
   const strip=mk("div","day-strip");
   DAYS.forEach(day=>{
     const p2=PLAN[day],isT=day===todayName(),isA=day===S.day,isL=!!S.logs[day];
-    const b=mk("div",`day-btn${isA?" day-btn-active":""}${isL?" day-btn-logged":""}`);
+    const isSrc=day===S.daySwapSrc, isSwapTarget=S.daySwapSrc&&day!==S.daySwapSrc;
+    let cls=`day-btn${isA&&!S.daySwapSrc?" day-btn-active":""}${isL?" day-btn-logged":""}${isSrc?" day-btn-swap-src":""}${isSwapTarget?" day-btn-swap-target":""}`;
+    const b=mk("div",cls);
     b.style.setProperty("--dc",p2.color);
     b.appendChild(mkT("div","day-lbl"+(isT?" day-lbl-today":""),day.slice(0,3).toUpperCase()));
     b.appendChild(mkT("div","day-ico",p2.icon));
     b.appendChild(mkT("div","day-nm",p2.label.split(" ")[0]));
-    b.onclick=()=>{S.day=day;S.swapIdx=null;render();};
+
+    // Long-press to start swap mode
+    let pressTimer=null;
+    b.addEventListener("touchstart",()=>{
+      pressTimer=setTimeout(()=>{ S.daySwapSrc=day; render(); },500);
+    },{passive:true});
+    b.addEventListener("touchend",()=>clearTimeout(pressTimer),{passive:true});
+    b.addEventListener("touchmove",()=>clearTimeout(pressTimer),{passive:true});
+    // Mouse long-press fallback
+    b.addEventListener("mousedown",()=>{ pressTimer=setTimeout(()=>{ S.daySwapSrc=day; render(); },500); });
+    b.addEventListener("mouseup",()=>clearTimeout(pressTimer));
+
+    b.onclick=()=>{
+      if(S.daySwapSrc) {
+        if(S.daySwapSrc===day) { S.daySwapSrc=null; render(); return; }
+        // Perform swap — swap the log entries for both days
+        const a=S.daySwapSrc, bDay=day;
+        const logA=S.logs[a]||null, logB=S.logs[bDay]||null;
+        if(logA) S.logs[bDay]=logA; else delete S.logs[bDay];
+        if(logB) S.logs[a]=logB; else delete S.logs[a];
+        sSet(`logs:${WK}`,S.logs);
+        S.day=bDay; S.daySwapSrc=null; S.swapIdx=null;
+        render(); return;
+      }
+      S.day=day; S.swapIdx=null; render();
+    };
     strip.appendChild(b);
   });
   app.appendChild(strip);
@@ -375,9 +481,8 @@ function render() {
   if(p.type==="run") renderRun(content);
   else renderGym(content,p);
 
-  const saveBtn=mkT("button","save-btn",S.saved?"✓ Saved":"Save Session");
-  saveBtn.id="save-btn"; saveBtn.style.background=S.saved?"#27AE60":p.color;
-  saveBtn.onclick=saveLog; content.appendChild(saveBtn);
+  const saveBtn=mkT("div","auto-saved-indicator","✓ Changes saved automatically");
+  content.appendChild(saveBtn);
 }
 
 function renderRun(container) {
@@ -435,6 +540,13 @@ function renderGym(container, plan) {
     rpeInp.title="Target RPE";
     rpeInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].rpe=parseInt(rpeInp.value)||null); });
     cfgRow.appendChild(rpeInp);
+
+    cfgRow.appendChild(mkT("span","ex-config-label","Rest"));
+    const restInp=mk("input","rest-dur-cfg"); restInp.type="number"; restInp.placeholder="90"; restInp.value=ex.rest||"90";
+    restInp.title="Rest duration (seconds)";
+    restInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].rest=parseInt(restInp.value)||90); });
+    cfgRow.appendChild(restInp);
+    cfgRow.appendChild(mkT("span","ex-config-label","s"));
 
     // Swap button
     const defEx=dayDefs[ei];
@@ -507,6 +619,9 @@ function renderGym(container, plan) {
         const nc=repsCol(ri.value,ex.rl,ex.rh);
         ri.style.color=nc; ri.style.fontWeight=ri.value?"700":"400";
         ri.style.borderColor=ri.value&&ex.rl?nc+"88":"#2A2A30";
+      });
+      ri.addEventListener("blur",()=>{
+        if(ri.value) startRest(ex.name, ex.rest||90);
       });
 
       const rpei=mk("input","set-rpe"); rpei.type="number"; rpei.placeholder="—"; rpei.value=set.rpe||"";
@@ -597,5 +712,20 @@ function renderHistory(app){
 
 render();
 </script>
+
+<div id="rest-overlay" class="rest-overlay">
+  <div class="rest-ring">
+    <svg viewBox="0 0 60 60"><circle class="rest-ring-track" cx="30" cy="30" r="26"/><circle id="rest-arc" class="rest-ring-fill" cx="30" cy="30" r="26"/></svg>
+    <div class="rest-ring-text" id="rest-countdown">0</div>
+  </div>
+  <div class="rest-info">
+    <div class="rest-label">Rest — <input id="rest-dur-inp" class="rest-inp" type="number" placeholder="90"> sec</div>
+    <div class="rest-ex-name" id="rest-ex-label">—</div>
+  </div>
+  <div class="rest-actions">
+    <button class="rest-add" onclick="restAdd30()">+30s</button>
+    <button class="rest-skip" onclick="restSkip()">Skip</button>
+  </div>
+</div>
 </body>
 </html>
