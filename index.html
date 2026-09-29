@@ -128,56 +128,174 @@
   .run-stats { display: flex; gap: 20px; }
   .stat-lbl { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; }
   .stat-val { font-size: 15px; font-weight: 700; }
+  .tab-btn { padding: 6px 10px; }
+  .mob-sec-t { font-size: 16px; font-weight: 700; }
+  .mob-sec-w { font-size: 12px; color: #888; margin: 2px 0 6px; }
+  .mob-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 9px 0; border-top: 1px solid #2A2A30; }
+  .mob-left { min-width: 0; }
+  .mob-link, .mob-name { font-size: 14px; font-weight: 600; color: #E8E6E1; }
+  .mob-link { text-decoration: underline; text-decoration-color: #555; text-underline-offset: 3px; }
+  .mob-note { font-size: 12px; color: #888; margin-top: 2px; }
+  .mob-dose { font-size: 13px; color: #C8C6C0; white-space: nowrap; text-align: right; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
 const PLAN = {
-  Monday:    { type:"run", label:"Run #1",            color:"#4A9EBF", icon:"🏃" },
-  Tuesday:   { type:"gym", label:"Push",              color:"#C0392B", icon:"💪", muscles:"Chest · Shoulders · Triceps" },
-  Wednesday: { type:"gym", label:"Pull",              color:"#C0392B", icon:"💪", muscles:"Back · Biceps" },
-  Thursday:  { type:"gym", label:"Legs A",            color:"#C0392B", icon:"🦵", muscles:"Quads · Calves" },
-  Friday:    { type:"run", label:"Run #2",            color:"#4A9EBF", icon:"🏃" },
-  Saturday:  { type:"gym", label:"Upper",             color:"#C0392B", icon:"💪", muscles:"Strength Focus · Compounds" },
-  Sunday:    { type:"gym", label:"Legs B + Mobility", color:"#7D3C98", icon:"🧘", muscles:"Posterior Chain · Hip Flexors · Hamstrings" },
+  Monday:    { type:"gym", label:"Rest + Home Core",    color:"#4A9EBF", icon:"🏠", muscles:"Office day · Core & forearms in the evening" },
+  Tuesday:   { type:"gym", label:"Pull",                color:"#C0392B", icon:"💪", muscles:"Mid-back · Traps · Rear delts · Biceps · Intervals at lunch" },
+  Wednesday: { type:"gym", label:"Push",                color:"#C0392B", icon:"💪", muscles:"Chest · Delts · Triceps" },
+  Thursday:  { type:"gym", label:"Legs + Home Core",    color:"#C0392B", icon:"🦵", muscles:"Quads · Hams · Glutes · Core · Forearms" },
+  Friday:    { type:"run", label:"Easy Run (optional)", color:"#4A9EBF", icon:"🏃", muscles:"5:45+/km · Office day" },
+  Saturday:  { type:"gym", label:"Upper",               color:"#C0392B", icon:"💪", muscles:"After parkrun · Back · Chest · Delts · Arms" },
+  Sunday:    { type:"gym", label:"Functional Lower",    color:"#7D3C98", icon:"🦵", muscles:"Glutes · Hams · Carries · Core · Slow run later" },
 };
 
+const HOME = [
+  { name:"Home: Dead Bug (/side)",      rl:8,  rh:10, rpe:7, s:3, wj:0,   rest:45,  alts:["Band-Resisted Dead Bug","Bird Dog"] },
+  { name:"Home: Reverse Crunch",        rl:10, rh:15, rpe:8, s:3, wj:0,   rest:60,  alts:["Lying Leg Raise","Bench Reverse Crunch"] },
+  { name:"Home: Band Pallof (/side)",   rl:10, rh:12, rpe:7, s:2, wj:0,   rest:45,  alts:["Half-Kneeling Band Pallof"] },
+  { name:"Home: Side Plank (sec)",      rl:30, rh:45, rpe:7, s:2, wj:0,   rest:45,  alts:["Knee Side Plank (sec)","Copenhagen (knee)"] },
+  { name:"Home: KB Wrist Curl",         rl:15, rh:20, rpe:9, s:3, wj:2,   rest:45,  alts:["Band Wrist Curl","DB Wrist Curl"] },
+  { name:"Home: Band Reverse Curl",     rl:15, rh:20, rpe:9, s:2, wj:0,   rest:45,  alts:["KB Reverse Curl","Reverse Wrist Curl"] },
+];
+
 const DEFS = {
+  Monday: [ ...HOME ],
   Tuesday: [
-    { name:"Barbell Bench Press",      rl:6,  rh:8,  rpe:8, s:4, wj:2.5, alts:["Dumbbell Bench Press","Incline Barbell Press","Push-Up (weighted)"] },
-    { name:"Incline Dumbbell Press",   rl:8,  rh:10, rpe:8, s:3, wj:2,   alts:["Incline Cable Fly","Incline Barbell Press","Landmine Press"] },
-    { name:"Cable Lateral Raise",      rl:12, rh:15, rpe:9, s:3, wj:1,   alts:["Dumbbell Lateral Raise","Machine Lateral Raise","Upright Row"] },
-    { name:"Overhead Press (barbell)", rl:6,  rh:8,  rpe:8, s:3, wj:2.5, alts:["Dumbbell Shoulder Press","Arnold Press","Seated Machine Press"] },
-    { name:"Tricep Rope Pushdown",     rl:12, rh:15, rpe:9, s:3, wj:2.5, alts:["Overhead Tricep Extension","Skull Crusher","Close-Grip Bench Press"] },
+    { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["Seal Row","CS T-Bar Row","1-Arm DB Row (bench)"] },
+    { name:"Neutral Lat Pulldown",        rl:8,  rh:10, rpe:8, s:2, wj:6.8, rest:120, alts:["Single-Arm Cable Pulldown","Machine Lat Pulldown"] },
+    { name:"1-Arm Cable Row",             rl:10, rh:12, rpe:8, s:2, wj:2.3, rest:90,  alts:["Seated Cable Row (wide)","Machine Row"] },
+    { name:"DB Shrug",                    rl:10, rh:12, rpe:9, s:3, wj:2,   rest:90,  alts:["Cable Shrug","Machine Shrug","Smith Shrug"] },
+    { name:"Face Pull",                   rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Reverse Cable Fly","Reverse Pec Deck"] },
+    { name:"DB Preacher Curl",            rl:10, rh:12, rpe:9, s:3, wj:1,   rest:60,  alts:["Machine Preacher Curl","EZ Preacher Curl"] },
+    { name:"Hammer Curl",                 rl:10, rh:12, rpe:9, s:2, wj:2,   rest:60,  alts:["Rope Hammer Curl","Cross-Body Hammer Curl"] },
   ],
   Wednesday: [
-    { name:"Barbell Row",              rl:6,  rh:8,  rpe:8, s:4, wj:2.5, alts:["Pendlay Row","Dumbbell Row","Cable Row"] },
-    { name:"Pull-Up / Lat Pulldown",   rl:8,  rh:10, rpe:8, s:4, wj:2.5, alts:["Assisted Pull-Up","Wide-Grip Pulldown","Single-Arm Pulldown"] },
-    { name:"Cable Face Pull",          rl:15, rh:15, rpe:8, s:3, wj:2.5, alts:["Band Face Pull","Rear Delt Fly","Reverse Pec Deck"] },
-    { name:"Dumbbell Curl",            rl:10, rh:12, rpe:9, s:3, wj:2,   alts:["Barbell Curl","Hammer Curl","Cable Curl"] },
-    { name:"Incline Dumbbell Curl",    rl:10, rh:12, rpe:9, s:3, wj:2,   alts:["Concentration Curl","Preacher Curl","Spider Curl"] },
+    { name:"Machine Chest Press",         rl:6,  rh:10, rpe:8, s:3, wj:6.8, rest:150, alts:["Hammer Strength Press","DB Floor Press"] },
+    { name:"15° Incline DB Press",        rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:120, alts:["Incline Machine Press","Low-Incline Smith Press"] },
+    { name:"Seated Low-High Fly",         rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:90,  alts:["Low-High Cable Fly","Mid Cable Fly (bench)"] },
+    { name:"Seated DB Lateral",           rl:12, rh:15, rpe:9, s:4, wj:1,   rest:60,  alts:["Cable Lateral Raise","Machine Lateral Raise"] },
+    { name:"Rope Pushdown",               rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Bar Pushdown","Single-Arm Pushdown"] },
+    { name:"Cross-Body Extension",        rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Single-Arm Pushdown"] },
   ],
   Thursday: [
-    { name:"Barbell Back Squat",       rl:6,  rh:8,  rpe:8, s:4, wj:2.5, alts:["Goblet Squat","Leg Press","Hack Squat"] },
-    { name:"Bulgarian Split Squat",    rl:8,  rh:10, rpe:8, s:3, wj:2,   alts:["Walking Lunge","Reverse Lunge","Step-Up"] },
-    { name:"Leg Extension",            rl:12, rh:15, rpe:9, s:3, wj:2.5, alts:["Sissy Squat","Terminal Knee Extension","Wall Sit"] },
-    { name:"Standing Calf Raise",      rl:12, rh:15, rpe:9, s:4, wj:2.5, alts:["Seated Calf Raise","Leg Press Calf Raise","Single-Leg Calf Raise"] },
+    { name:"Leg Press (feet high)",       rl:8,  rh:10, rpe:8, s:3, wj:6.8, rest:150, alts:["Hack Squat","Pendulum Squat"] },
+    { name:"Seated Leg Curl",             rl:10, rh:12, rpe:9, s:4, wj:6.8, rest:90,  alts:["Lying Leg Curl","Single-Leg Curl"] },
+    { name:"DB Split Squat (/side)",      rl:8,  rh:10, rpe:8, s:2, wj:2,   rest:90,  alts:["Smith Split Squat","Reverse Lunge"] },
+    { name:"Leg Extension",               rl:12, rh:15, rpe:9, s:3, wj:6.8, rest:60,  alts:["Single-Leg Extension"] },
+    { name:"Hip Abduction",               rl:15, rh:20, rpe:9, s:3, wj:6.8, rest:60,  alts:["Cable Hip Abduction"] },
+    ...HOME,
   ],
   Saturday: [
-    { name:"Barbell Bench Press",      rl:5,  rh:5,  rpe:8, s:5, wj:2.5, alts:["Dumbbell Bench Press","Weighted Dip","Floor Press"] },
-    { name:"Weighted Pull-Up",         rl:5,  rh:5,  rpe:8, s:5, wj:2.5, alts:["Pull-Up","Lat Pulldown (heavy)","Cable Row (heavy)"] },
-    { name:"Overhead Press (barbell)", rl:5,  rh:6,  rpe:8, s:4, wj:2.5, alts:["Push Press","Dumbbell Shoulder Press","Z-Press"] },
-    { name:"Dumbbell Row",             rl:8,  rh:8,  rpe:8, s:4, wj:2,   alts:["Chest-Supported Row","Cable Row","Meadows Row"] },
-    { name:"Cable Lateral Raise",      rl:15, rh:15, rpe:9, s:3, wj:1,   alts:["Dumbbell Lateral Raise","Machine Lateral Raise","Leaning Cable Raise"] },
+    { name:"Seal Row",                    rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["CS T-Bar Row","CS Row (elbows wide)"] },
+    { name:"Incline Machine Press",       rl:8,  rh:10, rpe:8, s:3, wj:6.8, rest:120, alts:["15° Incline DB Press","Low-Incline Smith Press"] },
+    { name:"Cable Lateral Raise",         rl:12, rh:15, rpe:9, s:4, wj:2.3, rest:60,  alts:["Seated DB Lateral","Machine Lateral Raise"] },
+    { name:"Reverse Cable Fly",           rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Reverse Pec Deck","Face Pull"] },
+    { name:"Mid Cable Fly (bench)",       rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Seated Low-High Fly"] },
+    { name:"Cable Curl",                  rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Preacher Curl","EZ Bar Curl"] },
+    { name:"Bar Pushdown",                rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Rope Pushdown","Reverse-Grip Pushdown"] },
   ],
   Sunday: [
-    { name:"Romanian Deadlift",        rl:8,  rh:10, rpe:8, s:4, wj:2.5, alts:["Stiff-Leg Deadlift","Dumbbell RDL","Single-Leg RDL"] },
-    { name:"Lying Leg Curl",           rl:10, rh:12, rpe:9, s:3, wj:2.5, alts:["Seated Leg Curl","Nordic Curl (assisted)","Swiss Ball Curl"] },
-    { name:"Hip Thrust",               rl:10, rh:12, rpe:9, s:4, wj:5,   alts:["Glute Bridge","Cable Pull-Through","Donkey Kick Machine"] },
-    { name:"Seated Calf Raise",        rl:12, rh:15, rpe:9, s:3, wj:2.5, alts:["Standing Calf Raise","Leg Press Calf Raise","Single-Leg Calf Raise"] },
+    { name:"DB Step-Up (/side)",          rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:90,  alts:["Reverse Lunge","DB Split Squat (/side)"] },
+    { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:2, wj:6.8, rest:90,  alts:["Leg Press (feet high)"] },
+    { name:"Lying Leg Curl",              rl:10, rh:12, rpe:9, s:3, wj:6.8, rest:90,  alts:["Seated Leg Curl","Single-Leg Curl"] },
+    { name:"Farmer's Carry (m)",          rl:30, rh:40, rpe:8, s:3, wj:2,   rest:90,  alts:["Farmer's Hold (sec)"] },
+    { name:"Suitcase Carry (m/side)",     rl:30, rh:40, rpe:7, s:2, wj:2,   rest:60,  alts:["Suitcase Hold (sec)"] },
+    { name:"Cable Pallof (/side)",        rl:10, rh:12, rpe:8, s:3, wj:2.3, rest:60,  alts:["Band Pallof"] },
+    { name:"Cable Crunch",                rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Crunch"] },
+    { name:"Copenhagen (sec/side)",       rl:30, rh:45, rpe:7, s:2, wj:0,   rest:45,  alts:["Side Plank (sec)"] },
+    { name:"Calf Raise",                  rl:10, rh:15, rpe:9, s:3, wj:5,   rest:60,  alts:["Seated Calf Raise","Leg Press Calf Raise"] },
   ],
 };
+
+const YT = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+const MOB = [
+  { t:"Morning mobility", w:"Daily at home, first thing · ~8 min · moving, not held to strain", items:[
+    { n:"Supine knee rocks", d:"10/side", u:YT("supine knee rocks lower back mobility") },
+    { n:"Cat-cow", d:"10 slow", u:YT("cat cow exercise form") },
+    { n:"Bird dog", d:"8/side", x:"Hips square, slow", u:YT("bird dog exercise form") },
+    { n:"Thread the needle", d:"8/side", x:"Pain-free range only", u:YT("thread the needle thoracic mobility") },
+    { n:"Side-lying open book", d:"8/side", x:"Back in once the shoulder is cleared (~13 Oct)", u:YT("side lying open book thoracic rotation") },
+    { n:"90/90 hip switch", d:"10 switches", u:YT("90 90 hip switch") },
+    { n:"Half-kneeling hip flexor", d:"30s/side", x:"Tuck the pelvis first, then shift forward", u:"https://www.youtube.com/shorts/WcF36BWCESI" },
+    { n:"Cross-body knee pull", d:"30s/side", x:"While the crest grumbles, then drop it", u:YT("supine cross body knee to opposite shoulder stretch") },
+  ]},
+  { t:"Upper warm-up", w:"Gym · Tue, Wed, Sat · ~8 min", items:[
+    { n:"Bike, easy", d:"5 min", x:"RPE 3" },
+    { n:"Band pull-apart, arms in front", d:"1×15", x:"RPE 4 · 30s rest", u:YT("band pull apart form") },
+    { n:"Band external rotation, elbow at side", d:"1×15", x:"RPE 4 · 30s rest", u:YT("band external rotation elbow at side") },
+    { n:"Cable ER, towel under arm", d:"2×15", x:"Tue & Sat · RPE 6 · 60s · shoulder maintenance", u:"https://www.youtube.com/watch?v=vjUE_9BsPUU" },
+    { n:"LHB isometric hold", d:"3×45–60s", x:"Wed, or any day the shoulder grumbles · RPE 5–6 · 60s", u:"https://www.youtube.com/watch?v=LVpq6ww5m4c" },
+    { n:"Ramp sets, first lift", d:"~50%×8, ~75%×5", x:"RPE 4–5 · 60s rest" },
+  ]},
+  { t:"Lower warm-up", w:"Gym · Thu, Sun · ~8 min", items:[
+    { n:"Bike, easy", d:"5 min", x:"RPE 3" },
+    { n:"Dowel hip hinge", d:"1×10", x:"Pattern only", u:YT("dowel hip hinge drill") },
+    { n:"Mini-band lateral walk", d:"2×10 steps each way", x:"RPE 5 · 30s rest", u:YT("mini band lateral walk form") },
+    { n:"1-leg glute bridge, LEFT only", d:"1×8", x:"2s squeeze at the top · RPE 5", u:YT("single leg glute bridge form") },
+    { n:"Dead bug, arms crossed", d:"1×8/side", x:"Sets the pelvis before loading", u:YT("dead bug exercise arms crossed") },
+    { n:"Knee-to-wall ankle mob", d:"5/side", x:"Leg press and split squat days", u:YT("knee to wall ankle mobilization") },
+    { n:"Ramp sets, first lift", d:"~50%×8, ~75%×5", x:"RPE 4–5 · 60s rest" },
+  ]},
+  { t:"Run warm-ups", w:"Cadence ~165+ spm on every run", items:[
+    { n:"Easy & slow runs", d:"No separate warm-up", x:"First km slower than target" },
+    { n:"Intervals & parkrun", d:"10 min easy", x:"RPE 3, then leg swings and strides" },
+    { n:"Leg swings", d:"10 each way/leg", u:YT("leg swings running warm up") },
+    { n:"Strides", d:"4×20s", x:"Walk back to recover", u:YT("running strides how to") },
+    { n:"Cool-down", d:"10 min easy", x:"After intervals & parkrun" },
+  ]},
+  { t:"After Sunday's session", w:"Gym, while warm · 45s holds", items:[
+    { n:"Figure-4 glute", d:"45s/side", u:"https://www.rehabhero.ca/exercise/figure-4-stretch" },
+    { n:"Cross-body knee pull", d:"45s/side", u:YT("supine cross body knee to opposite shoulder stretch") },
+    { n:"Half-kneeling hip flexor, tucked", d:"45s/side", u:"https://www.youtube.com/shorts/WcF36BWCESI" },
+    { n:"90/90 forward lean", d:"45s/side", x:"Chest leads over the front shin", u:YT("90 90 hip stretch forward lean") },
+    { n:"Supine hamstring, strap", d:"45s/side", x:"Knee soft", u:"https://library.theprehabguys.com/vimeo-video/supine-hamstring-stretch-strap/" },
+    { n:"Knee-to-wall", d:"5/side", x:"Measure and log the gap", u:YT("knee to wall ankle test") },
+    { n:"Towel breathing", d:"5 slow breaths", u:YT("towel breathing rib expansion") },
+  ]},
+  { t:"Evening routine", w:"Home · ~8 min · around 8:15pm", items:[
+    { n:"Figure-4 glute", d:"45s/side", x:"Reaches the crest via glute med", u:"https://www.rehabhero.ca/exercise/figure-4-stretch" },
+    { n:"Cross-body knee pull", d:"45s/side", x:"While the crest grumbles", u:YT("supine cross body knee to opposite shoulder stretch") },
+    { n:"Supine hamstring, strap", d:"45s/side", x:"Knee soft", u:"https://library.theprehabguys.com/vimeo-video/supine-hamstring-stretch-strap/" },
+    { n:"Soleus wall stretch, knee bent", d:"45s/side", u:YT("soleus wall stretch bent knee") },
+    { n:"Foam roller T-spine extension", d:"8 slow reps", x:"Arms crossed on chest, no shoulder load", u:YT("foam roller thoracic extension arms crossed") },
+    { n:"90/90 breathing, feet on sofa", d:"2×5 breaths", x:"Pelvis tucked", u:YT("90 90 breathing feet on couch") },
+    { n:"No shoulder stretches yet", d:"", x:"No doorway pec, biceps, cross-body or sleeper stretches until the shoulder is cleared" },
+  ]},
+  { t:"Session cues", w:"The rules that keep the shoulder and crest quiet", items:[
+    { n:"Pain rule", d:"≤3/10", x:"Nothing sharp at the front of the shoulder or the crest; next-morning stiffness no worse than usual" },
+    { n:"Presses", d:"", x:"Scap back, stop short of lockout, don't sink into the bottom stretch" },
+    { n:"Flies", d:"", x:"Stop short of the deep stretch" },
+    { n:"Curls", d:"", x:"Elbow in front of the body, never incline or behind" },
+    { n:"Rows", d:"", x:"Elbows stop level with the torso" },
+    { n:"Leg press", d:"", x:"Lower back stays flat on the pad" },
+    { n:"Split squats, step-ups", d:"", x:"Left side first" },
+    { n:"Side plank, dead bug", d:"", x:"Side plank from the knees and dead bug arms crossed until cleared" },
+  ]},
+];
+
+function renderMobility(app){
+  const content=mk("div","content"); app.appendChild(content);
+  MOB.forEach(sec=>{
+    const card=mk("div","ex-card");
+    card.appendChild(mkT("div","mob-sec-t",sec.t));
+    card.appendChild(mkT("div","mob-sec-w",sec.w));
+    sec.items.forEach(it=>{
+      const row=mk("div","mob-row"), left=mk("div","mob-left");
+      let nm;
+      if(it.u){ nm=mk("a","mob-link"); nm.href=it.u; nm.target="_blank"; nm.rel="noopener"; nm.textContent=it.n+" ▶"; }
+      else nm=mkT("div","mob-name",it.n);
+      left.appendChild(nm);
+      if(it.x) left.appendChild(mkT("div","mob-note",it.x));
+      row.appendChild(left);
+      if(it.d) row.appendChild(mkT("div","mob-dose",it.d));
+      card.appendChild(row);
+    });
+    content.appendChild(card);
+  });
+}
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
@@ -210,7 +328,7 @@ function defaultLog(day) {
   const defs=DEFS[day];
   if(!defs) return {exercises:[{name:"",rl:null,rh:null,rpe:8,wj:2.5,sets:[{w:"",r:"",rpe:""}]}],notes:""};
   return {
-    exercises: defs.map(d=>({ name:d.name, rl:d.rl, rh:d.rh, rpe:d.rpe||8, wj:d.wj, sets:Array.from({length:d.s},()=>({w:"",r:"",rpe:""})) })),
+    exercises: defs.map(d=>({ name:d.name, rl:d.rl, rh:d.rh, rpe:d.rpe||8, wj:d.wj, rest:d.rest||90, sets:Array.from({length:d.s},()=>({w:"",r:"",rpe:""})) })),
     notes:""
   };
 }
@@ -228,7 +346,8 @@ let S = {
 
 function getLog() {
   const p=PLAN[S.day];
-  return S.logs[S.day]||(p.type==="gym"?defaultLog(S.day):{distance:"",duration:"",notes:""});
+  const l=S.logs[S.day]; if(l&&(p.type!=="gym"||l.exercises)) return l;
+  return p.type==="gym"?defaultLog(S.day):{distance:"",duration:"",notes:""};
 }
 function mutLog(fn) {
   const l=JSON.parse(JSON.stringify(getLog()));
@@ -415,14 +534,15 @@ function render() {
   hdrL.appendChild(mkT("div","header-sub","Bulk Log"));
   hdrL.appendChild(mkT("div","header-week",weekLabel(WK)));
   const hdrR=mk("div","header-btns");
-  ["log","history"].forEach(v=>{
-    const b=mkT("button","tab-btn "+(S.view===v||S.view==="hist-detail"&&v==="history"?"tab-active":"tab-inactive"),v==="log"?"Week":"History");
-    b.onclick=()=>{if(v==="history"){S.view="history";S.histSel=null;S.histLog=null;}else{S.view="log";}render();};
+  ["log","mob","history"].forEach(v=>{
+    const b=mkT("button","tab-btn "+(S.view===v||S.view==="hist-detail"&&v==="history"?"tab-active":"tab-inactive"),{log:"Week",mob:"Mobility",history:"History"}[v]);
+    b.onclick=()=>{if(v==="history"){S.view="history";S.histSel=null;S.histLog=null;}else{S.view=v;}render();};
     hdrR.appendChild(b);
   });
   hdr.append(hdrL,hdrR); app.appendChild(hdr);
 
   if(S.view==="history"||S.view==="hist-detail"){renderHistory(app);return;}
+  if(S.view==="mob"){renderMobility(app);return;}
 
   // Day swap hint bar
   if(S.daySwapSrc) {
@@ -672,7 +792,7 @@ function renderHistory(app){
       di.appendChild(mkT("div","hist-day-title",`${day} — ${p.label}`));
       if(p.muscles) di.appendChild(mkT("div","hist-day-muscles",p.muscles));
       dh.appendChild(di); card.appendChild(dh);
-      if(p.type==="run"){
+      if(!log.exercises){
         const rs=mk("div","run-stats");
         [["Distance",log.distance?`${log.distance} km`:"—"],["Duration",log.duration?`${log.duration} min`:"—"]].forEach(([l,v])=>{
           const w=mk("div"); w.appendChild(mkT("div","stat-lbl",l)); w.appendChild(mkT("div","stat-val",v)); rs.appendChild(w);
