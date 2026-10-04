@@ -10,15 +10,15 @@
 <title>Bulk Log</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: #0F0F12; color: #E8E6E1; font-family: -apple-system, 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100%; background: #0F0F12; color: #E8E6E1; font-family: -apple-system, 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
   body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
   input, textarea, button { font-family: inherit; -webkit-appearance: none; appearance: none; }
   input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
   button { cursor: pointer; }
 
-  #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
 
-  .header { background: #18181C; border-bottom: 1px solid #2A2A30; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: #18181C; border-bottom: 1px solid #2A2A30; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
   .header-sub { font-size: 11px; letter-spacing: 3px; color: #888; text-transform: uppercase; margin-bottom: 2px; }
   .header-week { font-size: 17px; font-weight: 700; }
   .header-btns { display: flex; gap: 8px; }
@@ -46,7 +46,7 @@
   .sess-title { font-size: 18px; font-weight: 700; }
   .sess-muscles { font-size: 12px; color: #888; margin-top: 1px; }
 
-  .content { flex: 1; overflow-y: auto; padding: 16px 20px 60px; -webkit-overflow-scrolling: touch; }
+  .content { flex: 1; padding: 16px 20px 60px; }
 
   /* Exercise card */
   .ex-card { background: #18181C; border-radius: 10px; padding: 14px; margin-bottom: 12px; border: 1px solid #2A2A30; transition: opacity 0.15s; position: relative; }
@@ -137,13 +137,14 @@
   .mob-link { text-decoration: underline; text-decoration-color: #555; text-underline-offset: 3px; }
   .mob-note { font-size: 12px; color: #888; margin-top: 2px; }
   .mob-dose { font-size: 13px; color: #C8C6C0; white-space: nowrap; text-align: right; }
+  .copy-btn { width: 100%; margin-top: 10px; padding: 12px; border-radius: 10px; background: #1E1E24; border: 1px solid #2A2A30; color: #C8C6C0; font-size: 13px; font-weight: 600; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
 const PLAN = {
-  Monday:    { type:"gym", label:"Rest + Home Core",    color:"#4A9EBF", icon:"🏠", muscles:"Office day · Core & forearms in the evening" },
+  Monday:    { type:"run", label:"Rest (office)",       color:"#4A9EBF", icon:"😴", muscles:"Morning mobility · Evening routine" },
   Tuesday:   { type:"gym", label:"Pull",                color:"#C0392B", icon:"💪", muscles:"Mid-back · Traps · Rear delts · Biceps · Intervals at lunch" },
   Wednesday: { type:"gym", label:"Push",                color:"#C0392B", icon:"💪", muscles:"Chest · Delts · Triceps" },
   Thursday:  { type:"gym", label:"Legs + Home Core",    color:"#C0392B", icon:"🦵", muscles:"Quads · Hams · Glutes · Core · Forearms" },
@@ -162,7 +163,6 @@ const HOME = [
 ];
 
 const DEFS = {
-  Monday: [ ...HOME ],
   Tuesday: [
     { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["Seal Row","CS T-Bar Row","1-Arm DB Row (bench)"] },
     { name:"Neutral Lat Pulldown",        rl:8,  rh:10, rpe:8, s:2, wj:6.8, rest:120, alts:["Single-Arm Cable Pulldown","Machine Lat Pulldown"] },
@@ -464,31 +464,89 @@ function setupDrag(handle, cardEl, ei) {
 
 
 // ── Rest Timer ────────────────────────────────────────────────────────────────
-let restTimer = { interval: null, remaining: 0, total: 0, exName: '' };
+// ── Rest timer: runs off a saved end time, so it survives leaving the app ─────
+const REST_KEY = 'restTimer';
+let restTimer = { tick: null, to: null, end: 0, total: 0, remaining: 0, exName: '', fired: true };
 const CIRC = 2 * Math.PI * 26; // circumference for r=26
+let audioCtx = null;
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+function swPost(msg) {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then(r => r.active && r.active.postMessage(msg)).catch(() => {});
+}
+function unlockAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch {}
+}
+document.addEventListener('pointerdown', unlockAudio, { passive: true });
+
+// Soft single bell strike, synthesised so no sound file is needed
+function playBell() {
+  unlockAudio();
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime, master = audioCtx.createGain();
+  master.gain.value = 0.25; master.connect(audioCtx.destination);
+  [[880, 1, 1.8], [1760, 0.35, 1.0], [2420, 0.18, 0.6], [3520, 0.08, 0.35]].forEach(([f, a, d]) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(a, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.05);
+  });
+}
+function askNotify() {
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
+}
+
+function saveRest() { sSet(REST_KEY, { end: restTimer.end, total: restTimer.total, exName: restTimer.exName }); }
+function clearRestTimers() { clearInterval(restTimer.tick); clearTimeout(restTimer.to); }
+
+function showRestOverlay() {
+  document.getElementById('rest-overlay').classList.add('active');
+  document.getElementById('rest-ex-label').textContent = restTimer.exName || 'Next set';
+  document.getElementById('rest-dur-inp').value = restTimer.total;
+}
+function closeRestOverlay() {
+  const o = document.getElementById('rest-overlay');
+  if (o && restTimer.fired) o.classList.remove('active');
+}
+
+function scheduleRest() {
+  clearRestTimers();
+  restTimer.fired = false;
+  restTimer.tick = setInterval(restTickFn, 250);
+  restTimer.to = setTimeout(restTickFn, Math.max(0, restTimer.end - Date.now()) + 20);
+  swPost({ type: 'rest', end: restTimer.end, label: restTimer.exName });
+  restTickFn();
+}
+
+function restTickFn() {
+  const ms = restTimer.end - Date.now();
+  restTimer.remaining = Math.max(0, Math.ceil(ms / 1000));
+  updateRestUI();
+  if (ms <= 0 && !restTimer.fired) {
+    restTimer.fired = true;
+    clearRestTimers();
+    try { localStorage.removeItem(REST_KEY); } catch {}
+    // In the app: bell + buzz. Away from the app: the service worker sends a notification instead.
+    if (!document.hidden && -ms < 5000) {
+      playBell();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
+    setTimeout(closeRestOverlay, 1500);
+  }
+}
 
 function startRest(exName, seconds) {
-  clearInterval(restTimer.interval);
+  unlockAudio(); askNotify();
   restTimer.exName = exName;
   restTimer.total = seconds;
-  restTimer.remaining = seconds;
-  updateRestUI();
-  document.getElementById('rest-overlay').classList.add('active');
-  document.getElementById('rest-ex-label').textContent = exName || 'Next set';
-  document.getElementById('rest-dur-inp').value = seconds;
-  restTimer.interval = setInterval(() => {
-    restTimer.remaining--;
-    if (restTimer.remaining <= 0) {
-      restTimer.remaining = 0;
-      clearInterval(restTimer.interval);
-      updateRestUI();
-      // Vibrate if supported
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      setTimeout(restSkip, 1200);
-    } else {
-      updateRestUI();
-    }
-  }, 1000);
+  restTimer.end = Date.now() + seconds * 1000;
+  saveRest(); showRestOverlay(); scheduleRest();
 }
 
 function updateRestUI() {
@@ -504,27 +562,61 @@ function updateRestUI() {
 }
 
 function restSkip() {
-  clearInterval(restTimer.interval);
-  document.getElementById('rest-overlay').classList.remove('active');
+  clearRestTimers();
+  restTimer.fired = true;
+  try { localStorage.removeItem(REST_KEY); } catch {}
+  swPost({ type: 'cancel' });
+  closeRestOverlay();
 }
 
 function restAdd30() {
-  restTimer.remaining += 30;
+  if (restTimer.fired) return;
+  restTimer.end += 30000;
   restTimer.total += 30;
-  updateRestUI();
+  saveRest(); scheduleRest();
 }
 
-// Sync rest duration input
+// Catch up instantly when you come back to the app
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !restTimer.fired) restTickFn();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('rest-dur-inp');
   if (inp) inp.addEventListener('change', () => {
     const v = parseInt(inp.value);
-    if (v > 0) { restTimer.total = v; restTimer.remaining = v; updateRestUI(); }
+    if (v > 0) { restTimer.total = v; restTimer.end = Date.now() + v * 1000; saveRest(); scheduleRest(); }
   });
+  // Resume a timer that was running when the app was closed
+  const saved = sGet(REST_KEY);
+  if (saved && saved.end > Date.now()) {
+    Object.assign(restTimer, saved);
+    showRestOverlay(); scheduleRest();
+  } else {
+    try { localStorage.removeItem(REST_KEY); } catch {}
+  }
 });
 
 // ── Main render ───────────────────────────────────────────────────────────────
+// Keep your place: re-renders and reopening the app no longer jump to the top
+let lastScroll = sGet('scrollPos') || { key: null, top: 0 };
+function scrollKey() {
+  return S.view === 'log' ? 'log|' + S.day : S.view === 'hist-detail' ? 'hist|' + S.histSel : S.view;
+}
 function render() {
+  if (document.getElementById('app').childElementCount) lastScroll.top = window.scrollY;
+  renderView();
+  const key = scrollKey();
+  const top = key === lastScroll.key ? lastScroll.top : 0; // new day or tab starts at the top
+  window.scrollTo(0, top);
+  lastScroll = { key, top };
+  sSet('scrollPos', lastScroll);
+}
+window.addEventListener('scroll', () => {
+  lastScroll.top = window.scrollY;
+  clearTimeout(render.t); render.t = setTimeout(() => sSet('scrollPos', lastScroll), 200);
+}, { passive: true });
+function renderView() {
   const app=document.getElementById("app");
   app.innerHTML="";
   const p=PLAN[S.day];
@@ -603,6 +695,34 @@ function render() {
 
   const saveBtn=mkT("div","auto-saved-indicator","✓ Changes saved automatically");
   content.appendChild(saveBtn);
+  const cp=mkT("button","copy-btn","Copy workout as text");
+  cp.onclick=()=>copyText(workoutText(), cp);
+  content.appendChild(cp);
+}
+
+function workoutText() {
+  const p=PLAN[S.day], log=getLog();
+  const d=new Date(WK); d.setDate(d.getDate()+DAYS.indexOf(S.day));
+  const lines=[`${d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})} — ${p.label}`];
+  if(!log.exercises){
+    lines.push(`Run: ${log.distance||"—"} km, ${log.duration||"—"} min`);
+  } else {
+    log.exercises.forEach(ex=>{
+      const sets=(ex.sets||[]).filter(s=>s.w||s.r).map(s=>`${s.w||"BW"}×${s.r||"?"}${s.rpe?"@"+s.rpe:""}`);
+      if(!sets.length) return;
+      const tgt=ex.rl?` (${ex.rl}${ex.rh&&ex.rh!==ex.rl?"–"+ex.rh:""}, RPE ${ex.rpe||"—"})`:"";
+      lines.push(`${ex.name||"Exercise"}${tgt}: ${sets.join(", ")}`);
+    });
+    if(lines.length===1) lines.push("Nothing logged yet");
+  }
+  if(log.notes) lines.push(`Notes: ${log.notes}`);
+  return lines.join("\n");
+}
+function copyText(text, btn) {
+  const done=()=>{ const t=btn.textContent; btn.textContent="Copied ✓"; setTimeout(()=>btn.textContent=t,1500); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(()=>fallback());
+  else fallback();
+  function fallback(){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");done();}catch{} ta.remove(); }
 }
 
 function renderRun(container) {
