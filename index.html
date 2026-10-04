@@ -57,6 +57,9 @@
   .drag-handle { color: #444; font-size: 18px; padding: 4px 6px; cursor: grab; flex-shrink: 0; touch-action: none; user-select: none; }
   .drag-handle:active { cursor: grabbing; color: #888; }
   .ex-name-inp { flex: 1; background: #0F0F12; border: 1px solid #2A2A30; border-radius: 7px; color: #E8E6E1; padding: 9px 12px; font-size: 14px; font-weight: 600; width: 100%; }
+  .gym-pick { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; }
+  .gym-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #2A2A30; background: #18181C; color: #888; font-size: 12px; font-weight: 600; }
+  .gym-btn-on { background: #E8E6E1; color: #0F0F12; border-color: #E8E6E1; }
   .ex-note { font-size: 11px; color: #888; margin: -2px 0 8px 34px; }
   .ex-rm { background: none; border: none; color: #444; font-size: 18px; padding: 4px 6px; flex-shrink: 0; }
 
@@ -443,11 +446,17 @@ function getLog() {
 }
 function mutLog(fn) {
   const l=JSON.parse(JSON.stringify(getLog()));
-  fn(l); S.logs={...S.logs,[S.day]:l};
+  fn(l);
+  if(PLAN[S.day].type==="gym"&&!l.gym) l.gym=sessionGym(l);
+  S.logs={...S.logs,[S.day]:l};
   sSet(`logs:${WK}`,S.logs);
   S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
 }
 function renderSaveBtn() {} // no-op, kept for safety
+
+// ── Gyms: weights and kit differ, so hints compare like with like ─────────────
+const GYMS = ["Pure Gym","Tathams"];
+function sessionGym(log) { return (log&&log.gym)||sGet("lastGym")||GYMS[0]; }
 
 // ── Exercise history across every logged week ─────────────────────────────────
 let HIST = null; // all logged gym sessions, newest first; cleared on every render
@@ -468,18 +477,25 @@ function sessDate(wk,i) {
   const d=new Date(wk+"T12:00:00"); d.setDate(d.getDate()+i);
   return d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
 }
-// The most recent session before the one on screen, on any day or week, where this exercise has reps logged
-function lastDone(name) {
+// The most recent session before the one on screen, on any day or week, where this exercise has reps logged.
+// Prefers this gym; sessions logged before gyms were tracked count for either gym.
+// If it has only been done at the other gym, that comes back with other:true (for reference, not hints).
+function lastDone(name, gym) {
   const n=(name||"").trim().toLowerCase(); if(!n) return null;
   const cur=DAYS.indexOf(S.day);
+  let other=null;
   for(const s of sessions()){
     if(s.wk>WK||(s.wk===WK&&s.i>=cur)) continue;
     const ex=s.log.exercises.find(e=>(e.name||"").trim().toLowerCase()===n);
     const sets=ex&&ex.sets||[];
-    if(sets.some(x=>x.r)) return {sets, when:sessDate(s.wk,s.i)};
+    if(!sets.some(x=>x.r)) continue;
+    const found={sets, when:sessDate(s.wk,s.i), gym:s.log.gym||null};
+    if(!found.gym||found.gym===gym) return {...found, other:false};
+    if(!other) other={...found, other:true};
   }
-  return null;
+  return other;
 }
+function lastLabel(last) { return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)}`; }
 function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}`).join(", "); }
 
 function repsCol(r,rl,rh){
@@ -829,7 +845,7 @@ function renderView() {
 function workoutText() {
   const p=PLAN[S.day], log=getLog();
   const d=new Date(WK); d.setDate(d.getDate()+DAYS.indexOf(S.day));
-  const lines=[`${d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})} — ${p.label}`];
+  const lines=[`${d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})} — ${p.label}${log.exercises?" @ "+sessionGym(log):""}`];
   if(!log.exercises){
     lines.push(`Run: ${log.distance||"—"} km, ${log.duration||"—"} min`);
   } else {
@@ -872,6 +888,16 @@ function renderRun(container) {
 function renderGym(container, plan) {
   const log=getLog();
   const dayDefs=DEFS[S.day]||[];
+  const gym=sessionGym(log);
+
+  const gp=mk("div","gym-pick");
+  gp.appendChild(mkT("span","ex-config-label","Gym"));
+  GYMS.forEach(g=>{
+    const b=mkT("button","gym-btn"+(g===gym?" gym-btn-on":""),g);
+    b.onclick=()=>{ sSet("lastGym",g); mutLog(l=>l.gym=g); render(); };
+    gp.appendChild(b);
+  });
+  container.appendChild(gp);
 
   log.exercises.forEach((ex,ei)=>{
     const card=mk("div","ex-card");
@@ -929,9 +955,9 @@ function renderGym(container, plan) {
     }
     card.appendChild(cfgRow);
 
-    // Progressive overload hint, from the last time this exercise was done on any day
-    const last=lastDone(ex.name);
-    const hint=last&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj||2.5):null;
+    // Progressive overload hint, from the last time this exercise was done at this gym on any day
+    const last=lastDone(ex.name,gym);
+    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj||2.5):null;
     if(hint){
       const h=mk("div","hint");
       h.style.background=`color-mix(in srgb,${hint.color} 10%,transparent)`;
@@ -939,10 +965,10 @@ function renderGym(container, plan) {
       const ht=mkT("div","hint-type",hint.type==="weight"?"Increase Weight":"Push for More Reps");
       ht.style.color=hint.color;
       const htxt=mk("div");
-      htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",`Last time (${last.when}): ${setsText(last.sets)}`));
+      htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",lastLabel(last)));
       h.append(mkT("span","",hint.icon),htxt); card.appendChild(h);
     } else if(last){
-      card.appendChild(mkT("div","last-ref",`Last time (${last.when}): ${setsText(last.sets)}`));
+      card.appendChild(mkT("div","last-ref",lastLabel(last)));
     }
 
     // Swap panel: each option shows its own targets and when you last did it
@@ -950,13 +976,13 @@ function renderGym(container, plan) {
       const sp=mk("div","swap-panel");
       sp.appendChild(mkT("div","swap-title","Choose alternative"));
       alts.forEach(alt=>{
-        const t=exTargets(alt,S.day), lastAlt=lastDone(alt);
+        const t=exTargets(alt,S.day), lastAlt=lastDone(alt,gym);
         const ob=mk("button","swap-opt");
         const top=mk("div","swap-opt-top");
         top.appendChild(mkT("span","swap-opt-name",alt));
         if(t) top.appendChild(mkT("span","swap-opt-tgt",`${t.rl}–${t.rh} · RPE ${t.rpe} · ${t.rest}s`));
         ob.appendChild(top);
-        ob.appendChild(mkT("div","swap-opt-last",lastAlt?`Last (${lastAlt.when}): ${setsText(lastAlt.sets)}`:"Not done yet"));
+        ob.appendChild(mkT("div","swap-opt-last",lastAlt?lastLabel(lastAlt):"Not done yet"));
         ob.onclick=()=>{
           mutLog(l=>{
             const e=l.exercises[ei]; e.name=alt;
@@ -1078,7 +1104,7 @@ function renderHistory(app){
       const dh=mk("div","hist-day-hdr");
       dh.appendChild(mkT("span","",p.icon+" "));
       const di=mk("div");
-      di.appendChild(mkT("div","hist-day-title",`${day} — ${p.label}`));
+      di.appendChild(mkT("div","hist-day-title",`${day} — ${p.label}${log.gym?" · "+log.gym:""}`));
       if(p.muscles) di.appendChild(mkT("div","hist-day-muscles",p.muscles));
       dh.appendChild(di); card.appendChild(dh);
       if(!log.exercises){
