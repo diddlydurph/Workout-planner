@@ -77,6 +77,15 @@
   .swap-title { font-size: 11px; color: #888; margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
   .swap-opt { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #1A2A30; color: #C8E6F0; font-size: 13px; padding: 8px 0; }
   .swap-opt:last-child { border-bottom: none; }
+  .swap-opt-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .swap-opt-name { font-weight: 600; }
+  .swap-opt-tgt { font-size: 11px; color: #F0A500; white-space: nowrap; }
+  .swap-opt-last { font-size: 11px; color: #888; margin-top: 2px; }
+  .hint-src { font-size: 11px; color: #888; margin-top: 3px; }
+  .ex-vid { color: #C0392B; font-size: 14px; text-decoration: none; padding: 6px 8px; border: 1px solid #2A2A30; border-radius: 7px; flex-shrink: 0; line-height: 1; }
+  .backup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+  .backup-btn { padding: 11px; border-radius: 10px; background: #1E1E24; border: 1px solid #2A2A30; color: #C8C6C0; font-size: 13px; font-weight: 600; }
+  .backup-note { font-size: 11px; color: #666; margin-bottom: 16px; text-align: center; }
 
   /* Sets — now 5 columns: set# | kg | reps | rpe | del */
   .sets-hdr { display: grid; grid-template-columns: 28px 1fr 1fr 48px 28px; gap: 5px; margin-bottom: 6px; }
@@ -175,7 +184,7 @@ const DEFS = {
   Wednesday: [
     { name:"Machine Chest Press",         rl:6,  rh:10, rpe:8, s:3, wj:6.8, rest:150, alts:["Hammer Strength Press","DB Floor Press"] },
     { name:"15° Incline DB Press",        rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:120, alts:["Incline Machine Press","Low-Incline Smith Press"] },
-    { name:"Seated Low-High Fly",         rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:90,  alts:["Low-High Cable Fly","Mid Cable Fly (bench)"] },
+    { name:"Standing Mid Cable Fly",      rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:90,  alts:["Mid Cable Fly (bench)"] },
     { name:"Seated DB Lateral",           rl:12, rh:15, rpe:9, s:4, wj:1,   rest:60,  alts:["Cable Lateral Raise","Machine Lateral Raise"] },
     { name:"Rope Pushdown",               rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Bar Pushdown","Single-Arm Pushdown"] },
     { name:"Cross-Body Extension",        rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Single-Arm Pushdown"] },
@@ -193,7 +202,7 @@ const DEFS = {
     { name:"Incline Machine Press",       rl:8,  rh:10, rpe:8, s:3, wj:6.8, rest:120, alts:["15° Incline DB Press","Low-Incline Smith Press"] },
     { name:"Cable Lateral Raise",         rl:12, rh:15, rpe:9, s:4, wj:2.3, rest:60,  alts:["Seated DB Lateral","Machine Lateral Raise"] },
     { name:"Reverse Cable Fly",           rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Reverse Pec Deck","Face Pull"] },
-    { name:"Mid Cable Fly (bench)",       rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Seated Low-High Fly"] },
+    { name:"Mid Cable Fly (bench)",       rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Standing Mid Cable Fly"] },
     { name:"Cable Curl",                  rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Preacher Curl","EZ Bar Curl"] },
     { name:"Bar Pushdown",                rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Rope Pushdown","Reverse-Grip Pushdown"] },
   ],
@@ -210,7 +219,80 @@ const DEFS = {
   ],
 };
 
+// Targets for alternatives that aren't a main exercise on any day.
+// Alternatives that are a main exercise elsewhere (e.g. Face Pull) use that day's targets.
+const ALTS = {
+  // Back
+  "CS T-Bar Row":               { rl:8,  rh:10, rpe:8, wj:2.5, rest:120 },
+  "1-Arm DB Row (bench)":       { rl:8,  rh:10, rpe:8, wj:2,   rest:90  },
+  "Single-Arm Cable Pulldown":  { rl:10, rh:12, rpe:8, wj:2.3, rest:90  },
+  "Machine Lat Pulldown":       { rl:8,  rh:10, rpe:8, wj:6.8, rest:120 },
+  "Seated Cable Row (wide)":    { rl:10, rh:12, rpe:8, wj:6.8, rest:90  },
+  "Machine Row":                { rl:10, rh:12, rpe:8, wj:6.8, rest:90  },
+  "Cable Shrug":                { rl:10, rh:12, rpe:9, wj:4.5, rest:90  },
+  "Machine Shrug":              { rl:10, rh:12, rpe:9, wj:6.8, rest:90  },
+  "Smith Shrug":                { rl:10, rh:12, rpe:9, wj:5,   rest:90  },
+  "Reverse Pec Deck":           { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
+  // Arms
+  "Machine Preacher Curl":      { rl:10, rh:12, rpe:9, wj:4.5, rest:60  },
+  "EZ Preacher Curl":           { rl:10, rh:12, rpe:9, wj:2.5, rest:60  },
+  "EZ Bar Curl":                { rl:10, rh:12, rpe:9, wj:2.5, rest:60  },
+  "Rope Hammer Curl":           { rl:10, rh:12, rpe:9, wj:2.3, rest:60  },
+  "Cross-Body Hammer Curl":     { rl:10, rh:12, rpe:9, wj:2,   rest:60  },
+  "Single-Arm Pushdown":        { rl:12, rh:15, rpe:9, wj:2.3, rest:60  },
+  "Reverse-Grip Pushdown":      { rl:10, rh:12, rpe:9, wj:2.3, rest:60  },
+  // Chest and shoulders
+  "Hammer Strength Press":      { rl:6,  rh:10, rpe:8, wj:5,   rest:150 },
+  "DB Floor Press":             { rl:8,  rh:10, rpe:8, wj:2,   rest:120 },
+  "Low-Incline Smith Press":    { rl:8,  rh:10, rpe:8, wj:5,   rest:120 },
+  "Machine Lateral Raise":      { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
+  // Legs
+  "Hack Squat":                 { rl:8,  rh:10, rpe:8, wj:5,   rest:150 },
+  "Pendulum Squat":             { rl:8,  rh:10, rpe:8, wj:5,   rest:150 },
+  "Single-Leg Curl":            { rl:10, rh:12, rpe:9, wj:4.5, rest:60  },
+  "Smith Split Squat":          { rl:8,  rh:10, rpe:8, wj:5,   rest:90  },
+  "Reverse Lunge":              { rl:8,  rh:10, rpe:8, wj:2,   rest:90  },
+  "Single-Leg Extension":       { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
+  "Cable Hip Abduction":        { rl:15, rh:20, rpe:9, wj:2.3, rest:60  },
+  "Seated Calf Raise":          { rl:10, rh:15, rpe:9, wj:5,   rest:60  },
+  "Leg Press Calf Raise":       { rl:10, rh:15, rpe:9, wj:6.8, rest:60  },
+  // Core, carries, forearms
+  "Band-Resisted Dead Bug":     { rl:8,  rh:10, rpe:7, wj:0,   rest:45  },
+  "Bird Dog":                   { rl:8,  rh:10, rpe:7, wj:0,   rest:45  },
+  "Lying Leg Raise":            { rl:10, rh:15, rpe:8, wj:0,   rest:60  },
+  "Bench Reverse Crunch":       { rl:10, rh:15, rpe:8, wj:0,   rest:60  },
+  "Half-Kneeling Band Pallof":  { rl:10, rh:12, rpe:7, wj:0,   rest:45  },
+  "Knee Side Plank (sec)":      { rl:30, rh:45, rpe:7, wj:0,   rest:45  },
+  "Copenhagen (knee)":          { rl:20, rh:30, rpe:7, wj:0,   rest:45  },
+  "Band Pallof":                { rl:10, rh:12, rpe:8, wj:0,   rest:60  },
+  "Machine Crunch":             { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
+  "Side Plank (sec)":           { rl:30, rh:45, rpe:7, wj:0,   rest:45  },
+  "Farmer's Hold (sec)":        { rl:30, rh:45, rpe:8, wj:2,   rest:90  },
+  "Suitcase Hold (sec)":        { rl:30, rh:45, rpe:7, wj:2,   rest:60  },
+  "Band Wrist Curl":            { rl:15, rh:20, rpe:9, wj:0,   rest:45  },
+  "DB Wrist Curl":              { rl:15, rh:20, rpe:9, wj:1,   rest:45  },
+  "KB Reverse Curl":            { rl:15, rh:20, rpe:9, wj:2,   rest:45  },
+  "Reverse Wrist Curl":         { rl:15, rh:20, rpe:9, wj:1,   rest:45  },
+};
+
+// Targets for any exercise by name: today's plan first, then the alternatives table, then any other day
+function exTargets(name, day) {
+  const pick = d => d && { rl:d.rl, rh:d.rh, rpe:d.rpe||8, wj:d.wj, rest:d.rest||90 };
+  const today = (DEFS[day]||[]).find(d=>d.name===name);
+  if(today) return pick(today);
+  if(ALTS[name]) return pick(ALTS[name]);
+  for(const d of DAYS){ const m=(DEFS[d]||[]).find(x=>x.name===name); if(m) return pick(m); }
+  return null;
+}
+
 const YT = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+// Form video for an exercise card: a YouTube search on the exercise name
+function exVideo(name) {
+  const q = name.replace(/^Home:\s*/,"")
+    .replace(/\s*\((\/side|sec|m|m\/side|sec\/side)\)/g,"")
+    .replace(/\bCS\b/g,"chest supported").replace(/\bDB\b/g,"dumbbell").replace(/\bKB\b/g,"kettlebell");
+  return YT(q + " form");
+}
 const MOB = [
   { t:"Morning mobility", w:"Daily at home, first thing · ~8 min · moving, not held to strain", items:[
     { n:"Supine knee rocks", d:"10/side", u:YT("supine knee rocks lower back mobility") },
@@ -333,11 +415,10 @@ function defaultLog(day) {
   };
 }
 
-const WK=weekKey(0), LWK=weekKey(-1);
+const WK=weekKey(0);
 let S = {
   view:"log", day:todayName(),
   logs:sGet(`logs:${WK}`)||{},
-  lwLogs:sGet(`logs:${LWK}`)||{},
   histWeeks:sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse(),
   swapIdx:null, histSel:null, histLog:null, saved:false,
   dragSrcIdx:null,
@@ -356,6 +437,39 @@ function mutLog(fn) {
   S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
 }
 function renderSaveBtn() {} // no-op, kept for safety
+
+// ── Exercise history across every logged week ─────────────────────────────────
+let HIST = null; // all logged gym sessions, newest first; cleared on every render
+function sessions() {
+  if(HIST) return HIST;
+  HIST = [];
+  sList("logs:").forEach(k=>{
+    const wk=k.slice(5), logs=wk===WK?S.logs:(sGet(k)||{});
+    Object.keys(logs).forEach(day=>{
+      const i=DAYS.indexOf(day);
+      if(i>=0&&logs[day]&&logs[day].exercises) HIST.push({wk,i,log:logs[day]});
+    });
+  });
+  HIST.sort((a,b)=>a.wk===b.wk?b.i-a.i:(a.wk<b.wk?1:-1));
+  return HIST;
+}
+function sessDate(wk,i) {
+  const d=new Date(wk+"T12:00:00"); d.setDate(d.getDate()+i);
+  return d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+}
+// The most recent session before the one on screen, on any day or week, where this exercise has reps logged
+function lastDone(name) {
+  const n=(name||"").trim().toLowerCase(); if(!n) return null;
+  const cur=DAYS.indexOf(S.day);
+  for(const s of sessions()){
+    if(s.wk>WK||(s.wk===WK&&s.i>=cur)) continue;
+    const ex=s.log.exercises.find(e=>(e.name||"").trim().toLowerCase()===n);
+    const sets=(ex&&ex.sets||[]).filter(x=>x.r);
+    if(sets.length) return {sets, when:sessDate(s.wk,s.i)};
+  }
+  return null;
+}
+function setsText(sets) { return sets.map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}`).join(", "); }
 
 function repsCol(r,rl,rh){
   if(!r||!rl) return "#E8E6E1";
@@ -604,6 +718,7 @@ function scrollKey() {
   return S.view === 'log' ? 'log|' + S.day : S.view === 'hist-detail' ? 'hist|' + S.histSel : S.view;
 }
 function render() {
+  HIST = null;
   if (document.getElementById('app').childElementCount) lastScroll.top = window.scrollY;
   renderView();
   const key = scrollKey();
@@ -746,19 +861,21 @@ function renderRun(container) {
 function renderGym(container, plan) {
   const log=getLog();
   const dayDefs=DEFS[S.day]||[];
-  const lwDay=S.lwLogs[S.day]||null;
 
   log.exercises.forEach((ex,ei)=>{
     const card=mk("div","ex-card");
 
-    // Top row: drag handle | name | delete
+    // Top row: drag handle | name | video | delete
     const topRow=mk("div","ex-top-row");
     const handle=mkT("div","drag-handle","⠿");
     const nameInp=mk("input","ex-name-inp"); nameInp.placeholder=`Exercise ${ei+1}`; nameInp.value=ex.name||"";
-    nameInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].name=nameInp.value); });
+    const vid=mkT("a","ex-vid","▶"); vid.target="_blank"; vid.rel="noopener"; vid.title="Form video";
+    const setVid=()=>{ const n=nameInp.value.trim(); vid.href=n?exVideo(n):""; vid.style.visibility=n?"visible":"hidden"; };
+    setVid();
+    nameInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].name=nameInp.value); setVid(); });
     const rmBtn=mkT("button","ex-rm","✕");
     rmBtn.onclick=()=>{ mutLog(l=>l.exercises.splice(ei,1)); S.swapIdx=null; render(); };
-    topRow.append(handle,nameInp,rmBtn);
+    topRow.append(handle,nameInp,vid,rmBtn);
     card.appendChild(topRow);
 
     // Config row: rep range | RPE target | swap
@@ -788,8 +905,8 @@ function renderGym(container, plan) {
     cfgRow.appendChild(restInp);
     cfgRow.appendChild(mkT("span","ex-config-label","s"));
 
-    // Swap button
-    const defEx=dayDefs[ei];
+    // Swap button: options come from the plan entry this exercise belongs to, wherever it has been dragged
+    const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name))||dayDefs[ei];
     const allOpts=defEx?[defEx.name,...defEx.alts]:[];
     const alts=allOpts.filter(n=>n!==ex.name);
     if(alts.length){
@@ -799,35 +916,38 @@ function renderGym(container, plan) {
     }
     card.appendChild(cfgRow);
 
-    // Progressive overload hint
-    const lwEx=lwDay?.exercises?.find(e=>e.name===ex.name)||null;
-    if(ex.rl&&lwEx){
-      const hint=calcHint(lwEx.sets,ex.rl,ex.rh,ex.wj||2.5);
-      if(hint){
-        const h=mk("div","hint");
-        h.style.background=`color-mix(in srgb,${hint.color} 10%,transparent)`;
-        h.style.border=`1px solid color-mix(in srgb,${hint.color} 33%,transparent)`;
-        const ht=mkT("div","hint-type",hint.type==="weight"?"Increase Weight":"Push for More Reps");
-        ht.style.color=hint.color;
-        const htxt=mk("div"); htxt.append(ht,mkT("div","hint-msg",hint.msg));
-        h.append(mkT("span","",hint.icon),htxt); card.appendChild(h);
-      }
-    } else if(lwEx&&lwEx.sets?.some(s=>s.w)){
-      const ref=lwEx.sets.filter(s=>s.w).map(s=>`${s.w}kg×${s.r}`).join(", ");
-      card.appendChild(mkT("div","last-ref",`Last week: ${ref}`));
+    // Progressive overload hint, from the last time this exercise was done on any day
+    const last=lastDone(ex.name);
+    const hint=last&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj||2.5):null;
+    if(hint){
+      const h=mk("div","hint");
+      h.style.background=`color-mix(in srgb,${hint.color} 10%,transparent)`;
+      h.style.border=`1px solid color-mix(in srgb,${hint.color} 33%,transparent)`;
+      const ht=mkT("div","hint-type",hint.type==="weight"?"Increase Weight":"Push for More Reps");
+      ht.style.color=hint.color;
+      const htxt=mk("div");
+      htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",`Last time (${last.when}): ${setsText(last.sets)}`));
+      h.append(mkT("span","",hint.icon),htxt); card.appendChild(h);
+    } else if(last){
+      card.appendChild(mkT("div","last-ref",`Last time (${last.when}): ${setsText(last.sets)}`));
     }
 
-    // Swap panel
+    // Swap panel: each option shows its own targets and when you last did it
     if(S.swapIdx===ei&&alts.length){
       const sp=mk("div","swap-panel");
       sp.appendChild(mkT("div","swap-title","Choose alternative"));
       alts.forEach(alt=>{
-        const ob=mkT("button","swap-opt",alt);
+        const t=exTargets(alt,S.day), lastAlt=lastDone(alt);
+        const ob=mk("button","swap-opt");
+        const top=mk("div","swap-opt-top");
+        top.appendChild(mkT("span","swap-opt-name",alt));
+        if(t) top.appendChild(mkT("span","swap-opt-tgt",`${t.rl}–${t.rh} · RPE ${t.rpe} · ${t.rest}s`));
+        ob.appendChild(top);
+        ob.appendChild(mkT("div","swap-opt-last",lastAlt?`Last (${lastAlt.when}): ${setsText(lastAlt.sets)}`:"Not done yet"));
         ob.onclick=()=>{
-          const nd=dayDefs.find(d=>d.name===alt||d.alts?.includes(alt));
           mutLog(l=>{
-            l.exercises[ei].name=alt;
-            if(nd){l.exercises[ei].rl=nd.rl;l.exercises[ei].rh=nd.rh;l.exercises[ei].rpe=nd.rpe||8;l.exercises[ei].wj=nd.wj;}
+            const e=l.exercises[ei]; e.name=alt;
+            if(t){ e.rl=t.rl; e.rh=t.rh; e.rpe=t.rpe; e.wj=t.wj; e.rest=t.rest; }
           });
           S.swapIdx=null; render();
         };
@@ -896,6 +1016,42 @@ function renderGym(container, plan) {
   container.appendChild(ta);
 }
 
+// ── Backup: every logged week in one JSON file ───────────────────────────────
+function exportBackup() {
+  const data={};
+  sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
+  const json=JSON.stringify({app:"bulk-log",version:1,exported:new Date().toISOString(),data});
+  const name=`bulk-log-backup-${new Date().toISOString().split("T")[0]}.json`;
+  const file=new File([json],name,{type:"application/json"});
+  const done=()=>{ sSet("lastBackup",Date.now()); render(); };
+  const download=()=>{
+    const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000); done();
+  };
+  // On a phone the share sheet saves to Files or Drive; elsewhere it downloads
+  if(matchMedia("(pointer:coarse)").matches&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:name}).then(done).catch(e=>{ if(!e||e.name!=="AbortError") download(); });
+  } else download();
+}
+function importBackup(file) {
+  const rd=new FileReader();
+  rd.onload=()=>{
+    let b; try{ b=JSON.parse(rd.result); }catch{ alert("That file isn't a Bulk Log backup."); return; }
+    const data=b&&b.data&&typeof b.data==="object"?b.data:b;
+    const keys=Object.keys(data||{}).filter(k=>/^logs:\d{4}-\d{2}-\d{2}$/.test(k)&&data[k]&&typeof data[k]==="object");
+    if(!keys.length){ alert("No workout weeks found in that file."); return; }
+    const when=b.exported?` from ${new Date(b.exported).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`:"";
+    if(!confirm(`Restore ${keys.length} week${keys.length>1?"s":""}${when}?\n\nWeeks in the backup replace the same weeks on this device. Other weeks are kept.`)) return;
+    keys.forEach(k=>sSet(k,data[k]));
+    S.logs=sGet(`logs:${WK}`)||{};
+    S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
+    render();
+    alert(`Restored ${keys.length} week${keys.length>1?"s":""}.`);
+  };
+  rd.readAsText(file);
+}
+
 function renderHistory(app){
   const content=mk("div","content"); app.appendChild(content);
   if(S.histSel&&S.histLog){
@@ -936,6 +1092,17 @@ function renderHistory(app){
     });
     return;
   }
+  const br=mk("div","backup-row");
+  const exp=mkT("button","backup-btn","⤓ Export backup"); exp.onclick=exportBackup;
+  const imp=mkT("button","backup-btn","⤒ Import backup");
+  const fi=mk("input"); fi.type="file"; fi.accept=".json,application/json"; fi.style.display="none";
+  fi.onchange=()=>{ if(fi.files[0]) importBackup(fi.files[0]); fi.value=""; };
+  imp.onclick=()=>fi.click();
+  br.append(exp,imp,fi); content.appendChild(br);
+  const lb=sGet("lastBackup");
+  content.appendChild(mkT("div","backup-note",lb
+    ?`Last backup ${new Date(lb).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`
+    :"No backup yet. Your logs only live on this device."));
   if(!S.histWeeks.length){
     const e=mk("div","hist-empty");
     e.appendChild(mkT("div","hist-empty-ico","📋"));
