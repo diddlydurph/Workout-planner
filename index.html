@@ -57,6 +57,7 @@
   .drag-handle { color: #444; font-size: 18px; padding: 4px 6px; cursor: grab; flex-shrink: 0; touch-action: none; user-select: none; }
   .drag-handle:active { cursor: grabbing; color: #888; }
   .ex-name-inp { flex: 1; background: #0F0F12; border: 1px solid #2A2A30; border-radius: 7px; color: #E8E6E1; padding: 9px 12px; font-size: 14px; font-weight: 600; width: 100%; }
+  .ex-note { font-size: 11px; color: #888; margin: -2px 0 8px 34px; }
   .ex-rm { background: none; border: none; color: #444; font-size: 18px; padding: 4px 6px; flex-shrink: 0; }
 
   /* Rep range + RPE target row */
@@ -173,7 +174,7 @@ const HOME = [
 
 const DEFS = {
   Tuesday: [
-    { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["Seal Row","CS T-Bar Row","1-Arm DB Row (bench)"] },
+    { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["15° Lying DB Row (elbows wide)","CS T-Bar Row","1-Arm DB Row (bench)"] },
     { name:"Neutral Lat Pulldown",        rl:8,  rh:10, rpe:8, s:2, wj:6.8, rest:120, alts:["Single-Arm Cable Pulldown","Machine Lat Pulldown"] },
     { name:"1-Arm Cable Row",             rl:10, rh:12, rpe:8, s:2, wj:2.3, rest:90,  alts:["Seated Cable Row (wide)","Machine Row"] },
     { name:"DB Shrug",                    rl:10, rh:12, rpe:9, s:3, wj:2,   rest:90,  alts:["Cable Shrug","Machine Shrug","Smith Shrug"] },
@@ -198,13 +199,13 @@ const DEFS = {
     ...HOME,
   ],
   Saturday: [
-    { name:"Seal Row",                    rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["CS T-Bar Row","CS Row (elbows wide)"] },
-    { name:"Incline Machine Press",       rl:8,  rh:10, rpe:8, s:3, wj:6.8, rest:120, alts:["15° Incline DB Press","Low-Incline Smith Press"] },
+    { name:"15° Lying DB Row (elbows wide)", rl:8, rh:10, rpe:8, s:3, wj:2,   rest:120, alts:["CS T-Bar Row","CS Row (elbows wide)"], note:"Chest down on a 15° bench, elbows 45–60° out" },
+    { name:"Low-Incline Smith Press",     rl:8,  rh:10, rpe:8, s:3, wj:5,   rest:120, alts:["15° Incline DB Press","Incline Machine Press"], note:"15° · bench foot an inch short of the tile edge, 1 on from the wall · ramp sets don't count" },
     { name:"Cable Lateral Raise",         rl:12, rh:15, rpe:9, s:4, wj:2.3, rest:60,  alts:["Seated DB Lateral","Machine Lateral Raise"] },
-    { name:"Reverse Cable Fly",           rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Reverse Pec Deck","Face Pull"] },
-    { name:"Mid Cable Fly (bench)",       rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Standing Mid Cable Fly"] },
-    { name:"Cable Curl",                  rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Preacher Curl","EZ Bar Curl"] },
-    { name:"Bar Pushdown",                rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Rope Pushdown","Reverse-Grip Pushdown"] },
+    { name:"Reverse Pec Deck",            rl:12, rh:15, rpe:9, s:3, wj:7,   rest:60,  alts:["Reverse Cable Fly","Face Pull"], note:"Seat 3" },
+    { name:"Pec Deck",                    rl:12, rh:15, rpe:9, s:2, wj:7,   rest:60,  alts:["Mid Cable Fly (bench)","Standing Mid Cable Fly"], note:"Seat 3, handles on 1 · stop short of the deep stretch" },
+    { name:"Cable Curl",                  rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Preacher Curl","EZ Bar Curl"], note:"EZ bar attachment" },
+    { name:"Bar Pushdown",                rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Rope Pushdown","Reverse-Grip Pushdown"], note:"EZ bar attachment" },
   ],
   Sunday: [
     { name:"DB Step-Up (/side)",          rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:90,  alts:["Reverse Lunge","DB Split Squat (/side)"] },
@@ -232,7 +233,7 @@ const ALTS = {
   "Cable Shrug":                { rl:10, rh:12, rpe:9, wj:4.5, rest:90  },
   "Machine Shrug":              { rl:10, rh:12, rpe:9, wj:6.8, rest:90  },
   "Smith Shrug":                { rl:10, rh:12, rpe:9, wj:5,   rest:90  },
-  "Reverse Pec Deck":           { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
+  "Reverse Cable Fly":          { rl:12, rh:15, rpe:9, wj:2.3, rest:60  },
   // Arms
   "Machine Preacher Curl":      { rl:10, rh:12, rpe:9, wj:4.5, rest:60  },
   "EZ Preacher Curl":           { rl:10, rh:12, rpe:9, wj:2.5, rest:60  },
@@ -244,7 +245,8 @@ const ALTS = {
   // Chest and shoulders
   "Hammer Strength Press":      { rl:6,  rh:10, rpe:8, wj:5,   rest:150 },
   "DB Floor Press":             { rl:8,  rh:10, rpe:8, wj:2,   rest:120 },
-  "Low-Incline Smith Press":    { rl:8,  rh:10, rpe:8, wj:5,   rest:120 },
+  "Incline Machine Press":      { rl:8,  rh:10, rpe:8, wj:6.8, rest:120 },
+  "Mid Cable Fly (bench)":      { rl:12, rh:15, rpe:9, wj:2.3, rest:60  },
   "Machine Lateral Raise":      { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
   // Legs
   "Hack Squat":                 { rl:8,  rh:10, rpe:8, wj:5,   rest:150 },
@@ -283,6 +285,12 @@ function exTargets(name, day) {
   if(ALTS[name]) return pick(ALTS[name]);
   for(const d of DAYS){ const m=(DEFS[d]||[]).find(x=>x.name===name); if(m) return pick(m); }
   return null;
+}
+
+// Setup note for an exercise (seat, handles, bench position) from whichever day's plan has it
+function exNote(name) {
+  for(const d of DAYS){ const m=(DEFS[d]||[]).find(x=>x.name===name&&x.note); if(m) return m.note; }
+  return "";
 }
 
 const YT = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
@@ -397,12 +405,15 @@ function weekLabel(wk) {
 
 function calcHint(lastSets, rl, rh, wj) {
   if(!lastSets||!lastSets.length) return null;
-  const filled=lastSets.filter(s=>s.w&&s.r);
+  const filled=lastSets.map((s,i)=>({...s,n:i+1})).filter(s=>s.w&&s.r);
   if(!filled.length) return null;
-  const reps=filled.map(s=>parseInt(s.r)), base=parseFloat(filled[0].w);
+  // Judge the weight you finished on, so ramp-up and back-off sets don't skew the hint
+  const base=parseFloat(filled[filled.length-1].w);
+  const work=filled.filter(s=>parseFloat(s.w)===base);
+  const reps=work.map(s=>parseInt(s.r));
   const min=Math.min(...reps), allTop=reps.every(r=>r>=rh);
-  if(allTop) return {type:"weight", msg:`↑ Increase to ${base+wj}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"};
-  const worst=reps.indexOf(min)+1;
+  if(allTop) return {type:"weight", msg:`↑ Increase to ${+(base+wj).toFixed(1)}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"};
+  const worst=work[reps.indexOf(min)].n;
   return {type:"reps", msg:`Push for ${Math.min(min+1,rh)} reps on all sets (set ${worst} was weakest at ${min})`, color:"#F0A500", icon:"📈"};
 }
 
@@ -464,12 +475,12 @@ function lastDone(name) {
   for(const s of sessions()){
     if(s.wk>WK||(s.wk===WK&&s.i>=cur)) continue;
     const ex=s.log.exercises.find(e=>(e.name||"").trim().toLowerCase()===n);
-    const sets=(ex&&ex.sets||[]).filter(x=>x.r);
-    if(sets.length) return {sets, when:sessDate(s.wk,s.i)};
+    const sets=ex&&ex.sets||[];
+    if(sets.some(x=>x.r)) return {sets, when:sessDate(s.wk,s.i)};
   }
   return null;
 }
-function setsText(sets) { return sets.map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}`).join(", "); }
+function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}`).join(", "); }
 
 function repsCol(r,rl,rh){
   if(!r||!rl) return "#E8E6E1";
@@ -877,6 +888,8 @@ function renderGym(container, plan) {
     rmBtn.onclick=()=>{ mutLog(l=>l.exercises.splice(ei,1)); S.swapIdx=null; render(); };
     topRow.append(handle,nameInp,vid,rmBtn);
     card.appendChild(topRow);
+    const note=exNote(ex.name);
+    if(note) card.appendChild(mkT("div","ex-note",note));
 
     // Config row: rep range | RPE target | swap
     const cfgRow=mk("div","ex-config-row");
