@@ -18,10 +18,10 @@
 
   #app { display: flex; flex-direction: column; min-height: 100vh; }
 
-  .header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: #18181C; border-bottom: 1px solid #2A2A30; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .header { flex-wrap: wrap; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: #18181C; border-bottom: 1px solid #2A2A30; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
   .header-sub { font-size: 11px; letter-spacing: 3px; color: #888; text-transform: uppercase; margin-bottom: 2px; }
   .header-week { font-size: 17px; font-weight: 700; }
-  .header-btns { display: flex; gap: 8px; }
+  .header-btns { display: flex; gap: 6px; }
   .tab-btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; }
   .tab-active { background: #E8E6E1; color: #0F0F12; }
   .tab-inactive { background: #2A2A30; color: #888; }
@@ -60,6 +60,18 @@
   .gym-pick { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; }
   .gym-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #2A2A30; background: #18181C; color: #888; font-size: 12px; font-weight: 600; }
   .gym-btn-on { background: #E8E6E1; color: #0F0F12; border-color: #E8E6E1; }
+  .run-status { font-size: 12px; color: #666; white-space: nowrap; font-weight: 600; }
+  .run-done { color: #27AE60; }
+  .run-row { padding: 10px 0 10px 10px; border-top: 1px solid #2A2A30; border-left: 3px solid #27AE60; margin-top: 2px; }
+  .run-warn { border-left-color: #F0A500; }
+  .run-bad { border-left-color: #C0392B; }
+  .run-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .run-note { font-size: 12px; color: #C8C6C0; margin-top: 4px; }
+  .vol-row { display: grid; grid-template-columns: 52px 1fr 60px; gap: 8px; align-items: center; padding: 5px 0; }
+  .vol-lbl, .vol-km { font-size: 12px; color: #888; }
+  .vol-km { text-align: right; }
+  .vol-bar { height: 10px; background: #0F0F12; border-radius: 5px; overflow: hidden; }
+  .vol-fill { height: 100%; background: #4A9EBF; border-radius: 5px; }
   .ex-note { font-size: 11px; color: #888; margin: -2px 0 8px 34px; }
   .ex-rm { background: none; border: none; color: #444; font-size: 18px; padding: 4px 6px; flex-shrink: 0; }
 
@@ -769,8 +781,8 @@ function renderView() {
   hdrL.appendChild(mkT("div","header-sub","Bulk Log"));
   hdrL.appendChild(mkT("div","header-week",weekLabel(WK)));
   const hdrR=mk("div","header-btns");
-  ["log","mob","history"].forEach(v=>{
-    const b=mkT("button","tab-btn "+(S.view===v||S.view==="hist-detail"&&v==="history"?"tab-active":"tab-inactive"),{log:"Week",mob:"Mobility",history:"History"}[v]);
+  ["log","runs","mob","history"].forEach(v=>{
+    const b=mkT("button","tab-btn "+(S.view===v||S.view==="hist-detail"&&v==="history"?"tab-active":"tab-inactive"),{log:"Week",runs:"Runs",mob:"Mobility",history:"History"}[v]);
     b.onclick=()=>{if(v==="history"){S.view="history";S.histSel=null;S.histLog=null;}else{S.view=v;}render();};
     hdrR.appendChild(b);
   });
@@ -778,6 +790,7 @@ function renderView() {
 
   if(S.view==="history"||S.view==="hist-detail"){renderHistory(app);return;}
   if(S.view==="mob"){renderMobility(app);return;}
+  if(S.view==="runs"){renderRuns(app);return;}
 
   // Day swap hint bar
   if(S.daySwapSrc) {
@@ -1056,6 +1069,143 @@ function renderGym(container, plan) {
   container.appendChild(ta);
 }
 
+// ── Runs: plan, Strava runs and effort read from heart rate ───────────────────
+// Weekly run plan. pace is the target range in seconds per km; zone is the target heart-rate zone range.
+const RUN_PLAN = [
+  { days:["Tuesday"], label:"Intervals", detail:"10 min easy, 6 × 800m with 2 min jog or walk recoveries, 10 min easy", pace:[260,265], zone:[4,5], rpe:"8", kind:"intervals" },
+  { days:["Saturday","Sunday"], label:"Hold-pace run", detail:"Parkrun on Saturday or 6–8 km on Sunday · first km easy", pace:[300,310], zone:[3,3], rpe:"6", kind:"hold" },
+  { days:["Friday"], label:"Easy run", detail:"Optional · 30–40 min", pace:[345,375], zone:[1,2], rpe:"3", kind:"easy", optional:true },
+];
+// Weeks that differ from the usual plan, keyed by the Monday they start on
+const RUN_WEEKS = {
+  "2026-10-05": [
+    { days:["Tuesday"], label:"Easy + strides", detail:"Time trial week · 30 min easy then 4 × 20s strides", pace:[345,375], zone:[1,2], rpe:"3", kind:"easy" },
+    { days:["Saturday"], label:"5K time trial", detail:"Parkrun as the test · 10 min warm-up with strides", pace:[240,270], zone:[4,5], rpe:"9", kind:"test" },
+    { days:["Sunday"], label:"Recovery run", detail:"Optional · easy, 20–30 min", pace:[345,390], zone:[1,2], rpe:"2–3", kind:"easy", optional:true },
+  ],
+};
+const ZONE_RPE = {1:"2–3",2:"3–4",3:"5–6",4:"7–8",5:"9–10"};
+
+// Strava runs: runs.json next to the app (kept for offline) or a file imported on this device; newest wins
+let RUNS = sGet("runsData");
+function setRuns(d) {
+  if(!d||!Array.isArray(d.runs)) return false;
+  if(RUNS&&RUNS.updated&&d.updated&&d.updated<RUNS.updated) return false;
+  RUNS=d; sSet("runsData",d); return true;
+}
+fetch("runs.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{ if(setRuns(d)&&S.view==="runs") render(); }).catch(()=>{});
+
+function fmtPace(s) { s=Math.round(s); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+function runPace(r) { return r.sec/r.km; }
+function hrZone(hr) {
+  if(!hr||!RUNS||!RUNS.hrZones) return null;
+  const z=RUNS.hrZones.findIndex(top=>hr<=top);
+  return z<0?5:z+1;
+}
+function weekOf(date) { // Monday of the week a YYYY-MM-DD date falls in
+  const d=new Date(date+"T12:00:00"), i=d.getDay()===0?6:d.getDay()-1;
+  d.setDate(d.getDate()-i); return d.toISOString().split("T")[0];
+}
+function dayOf(date) { const d=new Date(date+"T12:00:00").getDay(); return DAYS[d===0?6:d-1]; }
+
+function hardRun(r) { return r.slot&&(r.slot.kind==="intervals"||r.slot.kind==="test"); }
+// Pace per heartbeat, compared with your recent non-interval runs: a big drop means HR ran high for the pace
+function hrDrift(run, all) {
+  const eff=r=>r.hr?(1000/runPace(r))/r.hr:null;
+  const prev=all.filter(r=>r.date<run.date&&r.hr&&!hardRun(r)).slice(0,6).map(eff).sort((a,b)=>a-b);
+  if(prev.length<3||!eff(run)) return null;
+  const med=prev[Math.floor(prev.length/2)];
+  return eff(run)/med-1;
+}
+
+function runVerdict(run, slot, all) {
+  const z=hrZone(run.hr), pace=runPace(run), notes=[];
+  let tone="ok";
+  if(slot&&z){
+    if(z>slot.zone[1]){ tone=z>slot.zone[1]+1?"bad":"warn"; notes.push(`HR in zone ${z}, above the zone ${slot.zone[1]} target. ${slot.kind==="easy"?"Slow down 15–20 s/km next time.":"Ease off about 10 s/km."}`); }
+    else if(z<slot.zone[0]&&slot.kind!=="easy") notes.push(`HR only reached zone ${z}, so there's room to push a little more.`);
+    else notes.push(`HR in zone ${z}, on target.`);
+  }
+  if(slot&&slot.kind!=="intervals"&&pace<slot.pace[0]-5) notes.push(`Pace ${fmtPace(pace)}/km is quicker than the ${fmtPace(slot.pace[0])}–${fmtPace(slot.pace[1])} target.`);
+  const drift=hardRun(run)?null:hrDrift(run,all);
+  if(drift!==null&&drift<-0.05){ if(tone==="ok") tone="warn"; notes.push("HR was high for this pace compared with your recent runs. Tired, hot or under-recovered? Keep the next run easy."); }
+  if(run.spm&&run.spm<160) notes.push(`Cadence ${run.spm} spm. Aim for 165+ with shorter, quicker steps.`);
+  return {tone, z, notes};
+}
+
+function renderRuns(app){
+  const content=mk("div","content"); app.appendChild(content);
+  const all=(RUNS&&RUNS.runs||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  all.forEach(r=>{ r.week=weekOf(r.date); r.day=dayOf(r.date); r.slot=null; });
+
+  const weeksSeen={};
+  all.slice().reverse().forEach(r=>{
+    const taken=weeksSeen[r.week]||(weeksSeen[r.week]=new Set());
+    r.slot=(RUN_WEEKS[r.week]||RUN_PLAN).find(s=>s.days.includes(r.day)&&!taken.has(s))||null;
+    if(r.slot) taken.add(r.slot);
+  });
+
+  // This week: plan slots and the runs done for them
+  const slots=RUN_WEEKS[WK]||RUN_PLAN, used=new Set(), thisWeek=all.filter(r=>r.week===WK);
+  const plan=mk("div","ex-card");
+  plan.appendChild(mkT("div","mob-sec-t","This week's runs"));
+  plan.appendChild(mkT("div","mob-sec-w",RUN_WEEKS[WK]?"Time trial week":"Your usual week"));
+  slots.forEach(slot=>{
+    const run=thisWeek.find(r=>r.slot===slot&&!used.has(r));
+    if(run) used.add(run);
+    const row=mk("div","mob-row"), left=mk("div","mob-left");
+    left.appendChild(mkT("div","mob-name",`${slot.label}${slot.optional?" (optional)":""}`));
+    left.appendChild(mkT("div","mob-note",`${slot.days.map(d=>d.slice(0,3)).join(" or ")} · ${slot.detail}`));
+    left.appendChild(mkT("div","mob-note",`Target ${fmtPace(slot.pace[0])}–${fmtPace(slot.pace[1])}/km · zone ${slot.zone[0]===slot.zone[1]?slot.zone[0]:slot.zone.join("–")} · RPE ${slot.rpe}`));
+    row.appendChild(left);
+    row.appendChild(mkT("div","run-status "+(run?"run-done":""),run?`✓ ${run.km.toFixed(1)} km`:"To do"));
+    plan.appendChild(row);
+  });
+  content.appendChild(plan);
+
+  if(!all.length){
+    content.appendChild(mkT("div","hist-empty","No Strava runs loaded yet."));
+    return;
+  }
+
+  // Recent runs with effort read from heart rate
+  const list=mk("div","ex-card");
+  list.appendChild(mkT("div","mob-sec-t","Recent runs"));
+  list.appendChild(mkT("div","mob-sec-w","Effort read from heart rate. Zones come from Strava."));
+  all.slice(0,8).forEach(run=>{
+    const slot=run.slot;
+    const v=runVerdict(run,slot,all);
+    const row=mk("div","run-row run-"+v.tone);
+    const top=mk("div","run-top");
+    top.appendChild(mkT("span","mob-name",`${sessDate(run.week,DAYS.indexOf(run.day))} · ${slot?slot.label:"Run"}`));
+    top.appendChild(mkT("span","mob-dose",`${run.km.toFixed(1)} km · ${fmtPace(runPace(run))}/km`));
+    row.appendChild(top);
+    const stats=[run.hr?`Avg HR ${run.hr}${v.z?` (zone ${v.z}, feels like RPE ${ZONE_RPE[v.z]})`:""}`:"No heart rate", run.spm?`${run.spm} spm`:""].filter(Boolean).join(" · ");
+    row.appendChild(mkT("div","mob-note",stats));
+    v.notes.forEach(n=>row.appendChild(mkT("div","run-note",n)));
+    list.appendChild(row);
+  });
+  content.appendChild(list);
+
+  // Weekly volume, to keep it flat
+  const weeks=[]; for(let i=5;i>=0;i--) weeks.push(weekKey(-i));
+  const km=weeks.map(w=>all.filter(r=>r.week===w).reduce((t,r)=>t+r.km,0));
+  const max=Math.max(...km,1);
+  const vol=mk("div","ex-card");
+  vol.appendChild(mkT("div","mob-sec-t","Weekly volume"));
+  vol.appendChild(mkT("div","mob-sec-w","Keep it roughly flat from week to week"));
+  weeks.forEach((w,i)=>{
+    const row=mk("div","vol-row");
+    row.appendChild(mkT("span","vol-lbl",new Date(w+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})));
+    const bar=mk("div","vol-bar"), fill=mk("div","vol-fill"); fill.style.width=`${km[i]/max*100}%`; bar.appendChild(fill);
+    row.appendChild(bar);
+    row.appendChild(mkT("span","vol-km",`${km[i].toFixed(1)} km`));
+    vol.appendChild(row);
+  });
+  content.appendChild(vol);
+  if(RUNS.updated) content.appendChild(mkT("div","backup-note",`Strava runs updated ${new Date(RUNS.updated).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}`));
+}
+
 // ── Backup: every logged week in one JSON file ───────────────────────────────
 function exportBackup() {
   const data={};
@@ -1080,7 +1230,10 @@ function importBackup(file) {
     let b; try{ b=JSON.parse(rd.result); }catch{ alert("That file isn't a Bulk Log backup."); return; }
     const data=b&&b.data&&typeof b.data==="object"?b.data:b;
     const keys=Object.keys(data||{}).filter(k=>/^logs:\d{4}-\d{2}-\d{2}$/.test(k)&&data[k]&&typeof data[k]==="object");
-    if(!keys.length){ alert("No workout weeks found in that file."); return; }
+    if(!keys.length){
+      if(b&&Array.isArray(b.runs)){ RUNS=null; setRuns(b); render(); alert(`Loaded ${b.runs.length} Strava runs.`); return; }
+      alert("No workout weeks found in that file."); return;
+    }
     const when=b.exported?` from ${new Date(b.exported).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`:"";
     if(!confirm(`Restore ${keys.length} week${keys.length>1?"s":""}${when}?\n\nWeeks in the backup replace the same weeks on this device. Other weeks are kept.`)) return;
     keys.forEach(k=>sSet(k,data[k]));
