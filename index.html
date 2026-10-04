@@ -214,8 +214,8 @@ const DEFS = {
     { name:"DB Step-Up (/side)",          rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:90,  alts:["Reverse Lunge","DB Split Squat (/side)"], note:"Glute focus · 20\" box · lean slightly forward, drive through the front heel, squeeze at the top · no push off the back foot, pelvis level · left first" },
     { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:2, wj:6.8, rest:90,  alts:["Leg Press (feet high)"] },
     { name:"Lying Leg Curl",              rl:10, rh:12, rpe:9, s:3, wj:6.8, rest:90,  alts:["Seated Leg Curl","Single-Leg Curl"] },
-    { name:"Farmer's Carry (m)",          rl:30, rh:40, rpe:8, s:3, wj:2,   rest:90,  alts:["Farmer's Hold (sec)"] },
-    { name:"Suitcase Carry (m/side)",     rl:30, rh:40, rpe:7, s:2, wj:2,   rest:60,  alts:["Suitcase Hold (sec)"] },
+    { name:"Farmer's Carry (lengths)",    rl:2,  rh:4,  rpe:8, s:3, wj:0,   rest:90,  alts:["Farmer's Hold (sec)"], note:"25kg max in the carry area, so add lengths, not weight · then a 10s hold at the end" },
+    { name:"Suitcase Carry (lengths/side)", rl:2, rh:4, rpe:7, s:2, wj:0,   rest:60,  alts:["Suitcase Hold (sec)"], note:"25kg max in the carry area, so add lengths, not weight · left side straight into right" },
     { name:"Cable Pallof (/side)",        rl:10, rh:12, rpe:8, s:3, wj:2.3, rest:60,  alts:["Band Pallof"] },
     { name:"Cable Crunch",                rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Crunch"] },
     { name:"Copenhagen (sec/side)",       rl:30, rh:45, rpe:7, s:2, wj:0,   rest:45,  alts:["Side Plank (sec)"] },
@@ -300,7 +300,7 @@ const YT = q => "https://www.youtube.com/results?search_query=" + encodeURICompo
 // Form video for an exercise card: a YouTube search on the exercise name
 function exVideo(name) {
   const q = name.replace(/^Home:\s*/,"")
-    .replace(/\s*\((\/side|sec|m|m\/side|sec\/side)\)/g,"")
+    .replace(/\s*\((\/side|sec|m|m\/side|sec\/side|lengths|lengths\/side)\)/g,"")
     .replace(/\bCS\b/g,"chest supported").replace(/\bDB\b/g,"dumbbell").replace(/\bKB\b/g,"kettlebell");
   return YT(q + " form");
 }
@@ -415,6 +415,7 @@ function calcHint(lastSets, rl, rh, wj) {
   const work=filled.filter(s=>parseFloat(s.w)===base);
   const reps=work.map(s=>parseInt(s.r));
   const min=Math.min(...reps), allTop=reps.every(r=>r>=rh);
+  if(allTop&&!wj) return {type:"harder", msg:`Top of the range at ${base}kg — make it harder: add a hold at the end or slow down`, color:"#27AE60", icon:"🏆"};
   if(allTop) return {type:"weight", msg:`↑ Increase to ${+(base+wj).toFixed(1)}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"};
   const worst=work[reps.indexOf(min)].n;
   return {type:"reps", msg:`Push for ${Math.min(min+1,rh)} reps on all sets (set ${worst} was weakest at ${min})`, color:"#F0A500", icon:"📈"};
@@ -957,12 +958,12 @@ function renderGym(container, plan) {
 
     // Progressive overload hint, from the last time this exercise was done at this gym on any day
     const last=lastDone(ex.name,gym);
-    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj||2.5):null;
+    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj??2.5):null;
     if(hint){
       const h=mk("div","hint");
       h.style.background=`color-mix(in srgb,${hint.color} 10%,transparent)`;
       h.style.border=`1px solid color-mix(in srgb,${hint.color} 33%,transparent)`;
-      const ht=mkT("div","hint-type",hint.type==="weight"?"Increase Weight":"Push for More Reps");
+      const ht=mkT("div","hint-type",{weight:"Increase Weight",harder:"Make It Harder",reps:"Push for More Reps"}[hint.type]);
       ht.style.color=hint.color;
       const htxt=mk("div");
       htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",lastLabel(last)));
