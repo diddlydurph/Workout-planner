@@ -622,7 +622,7 @@ function setupDrag(handle, cardEl, ei) {
 const REST_KEY = 'restTimer';
 let restTimer = { tick: null, to: null, end: 0, total: 0, remaining: 0, exName: '', fired: true };
 const CIRC = 2 * Math.PI * 26; // circumference for r=26
-let audioCtx = null;
+let audioCtx = null, cueBus = null, cueEndAt = 0, wakeLock = null;
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 function swPost(msg) {
@@ -631,27 +631,81 @@ function swPost(msg) {
 }
 function unlockAudio() {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // If the phone paused our audio (another app, a call), put the countdown back once it's running again
+      audioCtx.onstatechange = () => { if (audioCtx.state === 'running') scheduleCues(); };
+    }
+    if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {}); // also covers iOS 'interrupted'
   } catch {}
 }
 document.addEventListener('pointerdown', unlockAudio, { passive: true });
 
-// Soft single bell strike, synthesised so no sound file is needed
-function playBell() {
-  unlockAudio();
-  if (!audioCtx) return;
-  const t = audioCtx.currentTime, master = audioCtx.createGain();
-  master.gain.value = 0.25; master.connect(audioCtx.destination);
-  [[880, 1, 1.8], [1760, 0.35, 1.0], [2420, 0.18, 0.6], [3520, 0.08, 0.35]].forEach(([f, a, d]) => {
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = 'sine'; o.frequency.value = f;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(a, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.05);
+// ── Countdown sounds, synthesised so no sound file is needed ──────────────────
+// 10s left: rising two-note chime · 3, 2, 1: short high bings · 0: double bell
+function tone(bus, t, f, dur, vol) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
+}
+function bell(bus, t, f, vol) {
+  [[1, 1, 1.8], [2, 0.35, 1.0], [2.75, 0.18, 0.6], [4, 0.08, 0.35]].forEach(([m, a, d]) => tone(bus, t, f * m, d, a * vol));
+}
+const SOUND = {
+  warn: (bus, t) => { tone(bus, t, 659, 0.45, 0.6); tone(bus, t, 1318, 0.25, 0.15); tone(bus, t + 0.22, 988, 0.7, 0.6); tone(bus, t + 0.22, 1976, 0.35, 0.15); },
+  bing: (bus, t) => { tone(bus, t, 1568, 0.22, 0.7); tone(bus, t, 3136, 0.12, 0.2); },
+  end:  (bus, t) => { bell(bus, t, 880, 0.5); bell(bus, t + 0.28, 1175, 0.4); },
+};
+const CUES = [[10, 'warn'], [3, 'bing'], [2, 'bing'], [1, 'bing'], [0, 'end']];
+
+function cancelCues() {
+  if (cueBus) { try { cueBus.disconnect(); } catch {} }
+  cueBus = null; cueEndAt = 0;
+}
+// Every cue is booked on the audio clock up front, so it lands on time even if the phone slows the app's timers
+function scheduleCues() {
+  cancelCues();
+  if (restTimer.fired || !audioCtx || audioCtx.state !== 'running') return;
+  const now = audioCtx.currentTime, left = (restTimer.end - Date.now()) / 1000;
+  cueBus = audioCtx.createGain(); cueBus.connect(audioCtx.destination);
+  CUES.forEach(([s, kind]) => {
+    if (kind === 'warn' && restTimer.total < 15) return; // too short for a separate warning
+    const at = left - s;
+    if (at < -0.05) return; // already passed
+    const t = now + Math.max(0.03, at);
+    SOUND[kind](cueBus, t);
+    if (kind === 'end') cueEndAt = t;
   });
 }
+// Fallback when the audio clock missed the end (audio was paused): ring now if we're still on time
+function ringLate() {
+  unlockAudio();
+  if (!audioCtx) return;
+  audioCtx.resume().then(() => {
+    if (Date.now() - restTimer.end > 3000) return;
+    const b = audioCtx.createGain(); b.connect(audioCtx.destination);
+    SOUND.end(b, audioCtx.currentTime + 0.02);
+  }).catch(() => {});
+}
+function buzz(p) { try { if (navigator.vibrate && !document.hidden) navigator.vibrate(p); } catch {} }
+
+// Keep the screen on while resting: a locked screen is the main reason the alert used to stay silent
+async function holdScreen() {
+  if (!('wakeLock' in navigator) || wakeLock || document.hidden || restTimer.fired) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+    if (restTimer.fired) releaseScreen(); // timer ended while we were asking
+  } catch { wakeLock = null; }
+}
+function releaseScreen() {
+  const w = wakeLock; wakeLock = null;
+  try { if (w) w.release(); } catch {}
+}
+
 function askNotify() {
   try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
 }
@@ -672,9 +726,11 @@ function closeRestOverlay() {
 function scheduleRest() {
   clearRestTimers();
   restTimer.fired = false;
+  restTimer.lastR = null;
   restTimer.tick = setInterval(restTickFn, 250);
   restTimer.to = setTimeout(restTickFn, Math.max(0, restTimer.end - Date.now()) + 20);
-  swPost({ type: 'rest', end: restTimer.end, label: restTimer.exName });
+  swPost({ type: 'rest', end: restTimer.end, label: restTimer.exName, warn: restTimer.total >= 15 });
+  scheduleCues(); holdScreen();
   restTickFn();
 }
 
@@ -682,15 +738,23 @@ function restTickFn() {
   const ms = restTimer.end - Date.now();
   restTimer.remaining = Math.max(0, Math.ceil(ms / 1000));
   updateRestUI();
+  // Buzz with the sounds: a nudge at 10s, a tick at 3, 2, 1
+  const r = restTimer.remaining;
+  if (r !== restTimer.lastR && !restTimer.fired && ms > 0) {
+    if (restTimer.lastR != null && r === 10 && restTimer.total >= 15) buzz(150);
+    if (r >= 1 && r <= 3) buzz(60);
+    restTimer.lastR = r;
+  }
   if (ms <= 0 && !restTimer.fired) {
     restTimer.fired = true;
-    clearRestTimers();
+    clearRestTimers(); releaseScreen();
     try { localStorage.removeItem(REST_KEY); } catch {}
-    // In the app: bell + buzz. Away from the app: the service worker sends a notification instead.
+    // In the app: the end bell is already booked on the audio clock. Away from the app: the service worker notifies.
     if (!document.hidden && -ms < 5000) {
-      playBell();
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    }
+      const booked = cueEndAt > 0 && audioCtx && audioCtx.state === 'running' && audioCtx.currentTime + 0.3 >= cueEndAt;
+      if (!booked) { cancelCues(); ringLate(); }
+      buzz([300, 100, 300]);
+    } else cancelCues(); // back long after the end: don't play a stale countdown
     setTimeout(closeRestOverlay, 1500);
   }
 }
@@ -718,6 +782,7 @@ function updateRestUI() {
 function restSkip() {
   clearRestTimers();
   restTimer.fired = true;
+  cancelCues(); releaseScreen();
   try { localStorage.removeItem(REST_KEY); } catch {}
   swPost({ type: 'cancel' });
   closeRestOverlay();
@@ -730,9 +795,12 @@ function restAdd30() {
   saveRest(); scheduleRest();
 }
 
-// Catch up instantly when you come back to the app
+// Catch up instantly when you come back to the app: re-sync the countdown and keep the screen on again
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && !restTimer.fired) restTickFn();
+  if (document.hidden || restTimer.fired) return;
+  restTickFn();
+  if (restTimer.fired) return;
+  unlockAudio(); scheduleCues(); holdScreen();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
