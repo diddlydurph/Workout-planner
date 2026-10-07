@@ -73,6 +73,11 @@
   .vol-bar { height: 10px; background: #0F0F12; border-radius: 5px; overflow: hidden; }
   .vol-fill { height: 100%; background: #4A9EBF; border-radius: 5px; }
   .ex-note { font-size: 11px; color: #888; margin: -2px 0 8px 34px; }
+  .ex-setup { margin: -2px 0 8px 34px; }
+  .setup-btn { display: block; width: 100%; text-align: left; background: none; border: 1px dashed #2A2A30; border-radius: 6px; color: #666; font-size: 12px; padding: 5px 8px; white-space: pre-wrap; word-break: break-word; }
+  .setup-btn.setup-has { border: 1px solid #F0A50044; background: #F0A50012; color: #E8C27A; }
+  .setup-ta { width: 100%; background: #0F0F12; border: 1px solid #F0A50066; border-radius: 6px; color: #E8E6E1; padding: 7px 9px; font-size: 13px; resize: vertical; display: block; }
+  .setup-done { margin-top: 5px; font-size: 11px; color: #F0A500; background: none; border: 1px solid #F0A50055; border-radius: 5px; padding: 3px 12px; font-weight: 600; }
   .ex-rm { background: none; border: none; color: #444; font-size: 18px; padding: 4px 6px; flex-shrink: 0; }
 
   /* Rep range + RPE target row */
@@ -470,6 +475,40 @@ function renderSaveBtn() {} // no-op, kept for safety
 // ── Gyms: weights and kit differ, so hints compare like with like ─────────────
 const GYMS = ["Pure Gym","Tathams"];
 function sessionGym(log) { return (log&&log.gym)||sGet("lastGym")||GYMS[0]; }
+
+// ── Setup notes: your own seat heights, pins and handles, kept per gym + exercise ──
+const SETUP_KEY="setupNotes";
+function setupKey(gym,name) { return `${gym}|${(name||"").trim()}`; }
+function getSetup(gym,name) { return (sGet(SETUP_KEY)||{})[setupKey(gym,name)]||""; }
+function setSetup(gym,name,text) {
+  const n=sGet(SETUP_KEY)||{}, k=setupKey(gym,name), t=(text||"").trim();
+  if(t) n[k]=t; else delete n[k];
+  sSet(SETUP_KEY,n);
+}
+let setupOpen=null; // the gym|exercise note being edited
+function setupNoteEl(name,gym) {
+  const wrap=mk("div","ex-setup"), nm=(name||"").trim();
+  if(!nm) return wrap;
+  const k=setupKey(gym,nm), mine=getSetup(gym,nm);
+  if(setupOpen===k){
+    const ta=mk("textarea","setup-ta"); ta.rows=2; ta.value=mine;
+    ta.placeholder=`Setup at ${gym}: seat, pins, handles, bench angle…`;
+    ta.addEventListener("input",()=>setSetup(gym,nm,ta.value)); // saved as you type
+    ta.addEventListener("blur",()=>{ setSetup(gym,nm,ta.value); if(setupOpen===k) setupOpen=null; });
+    const done=mkT("button","setup-done","Done");
+    done.onclick=()=>{ setupOpen=null; render(); };
+    wrap.append(ta,done);
+    setTimeout(()=>{ ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); },0);
+    return wrap;
+  }
+  // Nothing for this gym yet: show the other gym's note for reference
+  const other=mine?null:GYMS.filter(g=>g!==gym).map(g=>[g,getSetup(g,nm)]).find(x=>x[1]);
+  const b=mk("button","setup-btn"+(mine?" setup-has":""));
+  b.textContent=mine?`🔧 ${mine}`:other?`🔧 ${other[0]}: ${other[1]}\n+ Add for ${gym}`:"🔧 Add setup note";
+  b.onclick=()=>{ setupOpen=k; render(); };
+  wrap.appendChild(b);
+  return wrap;
+}
 
 // ── Exercise history across every logged week ─────────────────────────────────
 let HIST = null; // all logged gym sessions, newest first; cleared on every render
@@ -998,6 +1037,7 @@ function renderGym(container, plan) {
     card.appendChild(topRow);
     const note=exNote(ex.name);
     if(note) card.appendChild(mkT("div","ex-note",note));
+    card.appendChild(setupNoteEl(ex.name,gym));
 
     // Config row: rep range | RPE target | swap
     const cfgRow=mk("div","ex-config-row");
@@ -1278,6 +1318,7 @@ function renderRuns(app){
 function exportBackup() {
   const data={};
   sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
+  const setup=sGet(SETUP_KEY); if(setup&&Object.keys(setup).length) data[SETUP_KEY]=setup;
   const json=JSON.stringify({app:"bulk-log",version:1,exported:new Date().toISOString(),data});
   const name=`bulk-log-backup-${new Date().toISOString().split("T")[0]}.json`;
   const file=new File([json],name,{type:"application/json"});
@@ -1298,17 +1339,21 @@ function importBackup(file) {
     let b; try{ b=JSON.parse(rd.result); }catch{ alert("That file isn't a Bulk Log backup."); return; }
     const data=b&&b.data&&typeof b.data==="object"?b.data:b;
     const keys=Object.keys(data||{}).filter(k=>/^logs:\d{4}-\d{2}-\d{2}$/.test(k)&&data[k]&&typeof data[k]==="object");
-    if(!keys.length){
+    const setup=data&&data[SETUP_KEY]&&typeof data[SETUP_KEY]==="object"?data[SETUP_KEY]:null;
+    const nSetup=setup?Object.keys(setup).length:0;
+    if(!keys.length&&!nSetup){
       if(b&&Array.isArray(b.runs)){ RUNS=null; setRuns(b); render(); alert(`Loaded ${b.runs.length} Strava runs.`); return; }
       alert("No workout weeks found in that file."); return;
     }
+    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`].filter(Boolean).join(" and ");
     const when=b.exported?` from ${new Date(b.exported).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`:"";
-    if(!confirm(`Restore ${keys.length} week${keys.length>1?"s":""}${when}?\n\nWeeks in the backup replace the same weeks on this device. Other weeks are kept.`)) return;
+    if(!confirm(`Restore ${what}${when}?\n\nWeeks and setup notes in the backup replace the same ones on this device. Everything else is kept.`)) return;
     keys.forEach(k=>sSet(k,data[k]));
+    if(nSetup) sSet(SETUP_KEY,{...(sGet(SETUP_KEY)||{}),...setup});
     S.logs=sGet(`logs:${WK}`)||{};
     S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
     render();
-    alert(`Restored ${keys.length} week${keys.length>1?"s":""}.`);
+    alert(`Restored ${what}.`);
   };
   rd.readAsText(file);
 }
