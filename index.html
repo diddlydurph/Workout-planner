@@ -193,6 +193,14 @@
   .plan-setup-btn { margin-top: 10px; }
   .warm { background: #18181C; border: 1px solid #2A2A30; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
   .warm-sum { font-size: 13px; font-weight: 700; color: #C8C6C0; cursor: pointer; }
+  .prog-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 9px 20px; background: #B088D014; border: none; border-bottom: 1px solid #B088D033; color: #B088D0; font-size: 12px; font-weight: 600; text-align: left; flex-shrink: 0; }
+  .prog-bar-go { font-size: 16px; line-height: 1; }
+  .prog-info { font-size: 11px; color: #B088D0; margin: -2px 0 8px 34px; }
+  .prog-info summary { cursor: pointer; }
+  .prog-info div { color: #888; margin-top: 4px; line-height: 1.4; white-space: pre-line; }
+  .prog-lbl { margin-top: 12px; }
+  .prog-pre { white-space: pre-line; }
+  .prog-stop { color: #C0392B; margin: 0 auto 20px; }
   .warm[open] .warm-sum { margin-bottom: 6px; }
   .rest-day { font-size: 14px; color: #C8C6C0; margin-bottom: 16px; line-height: 1.5; }
   .food-p { font-size: 13px; color: #C8C6C0; line-height: 1.5; margin: 6px 0; }
@@ -711,6 +719,8 @@ function dayMuscles(exs) {
 
 // Turn a personal plan into the tables the rest of the app reads
 let MYPLAN = null, MYSETUP = null;
+// A training program loaded on this phone, and the plan it sits on top of
+let PROG = null, BASE = null;
 function applyPlan(pl) {
   MYPLAN=pl;
   PLAN={}; DEFS={};
@@ -722,6 +732,7 @@ function applyPlan(pl) {
   });
   GYMS=pl.gyms&&pl.gyms.length?pl.gyms:["My gym"];
   ALTS={}; LIB.forEach(e=>{ ALTS[e.n]=libTargets(e,MYSETUP); });
+  BASE=null; progRefresh();
 }
 
 // ── Who's using the app on this phone ────────────────────────────────────────
@@ -739,6 +750,64 @@ if(ME&&!ME.classic){
   MYSETUP=sGet("me"); const pl=sGet("plan");
   if(pl&&pl.days) applyPlan(pl); else ME=null; // no plan yet: back to setup
 }
+
+// ── Training programs: weeks of sessions loaded from a file, on top of your plan ──
+// The file stays on this phone (and in backups). You pick the weekdays; the week number follows the calendar.
+const DAY_MS=864e5;
+function addWeeks(wk,n) { return new Date(Date.parse(wk)+n*7*DAY_MS).toISOString().slice(0,10); }
+function progWeek() { return PROG?Math.round((Date.parse(weekKey(0))-Date.parse(PROG.start))/(7*DAY_MS))+1:0; }
+function progActive() { const n=progWeek(); return !!PROG&&n>=1&&n<=PROG.weeks.length; }
+// Weekdays for the sessions: your pick, else your plan's lifting days if there are as many, else the program's own
+function progDays() {
+  const n=PROG.weeks[0].sessions.length;
+  if(Array.isArray(PROG.days)&&PROG.days.length===n) return DAYS.filter(d=>PROG.days.includes(d));
+  const mine=DAYS.filter(d=>BASE.plan[d]&&BASE.plan[d].type==="gym");
+  return mine.length===n?mine:(PROG.layout||DAYS).slice(0,n);
+}
+const lastNum=s=>{ const m=String(s||"").match(/\d+/g); return m?+m[m.length-1]:null; }; // "~8-9" → 9
+function restSecs(s) { const m=String(s||"").match(/(\d+)(?:-(\d+))?\s*min/); return m?Math.round((+m[1]+ +(m[2]||m[1]))*30):90; }
+function repsRange(s) { const m=String(s||"").match(/(\d+)(?:-(\d+))?/); return m?[+m[1],+(m[2]||m[1])]:[8,12]; }
+function progLink(name) { const u=PROG&&(PROG.links||{})[name]; return /^https:\/\//.test(u||"")?u:""; }
+function progEx(e, swaps) {
+  const name=swaps[e.n]??e.n; if(!name) return null; // skipped for the whole program
+  const [rl,rh]=repsRange(e.reps), t=ALTS[name]||{};
+  return { name, orig:e.n, prog:true, rl, rh, rpe:lastNum(e.last)||8, s:e.s||2, wj:t.wj??2.5, rest:restSecs(e.rest),
+    alts:[e.n,...(e.alts||[])].filter(a=>a!==name), note:name===e.n?(PROG.cues||{})[e.n]||"":"",
+    tech:e.tech||"", wu:e.wu||"", early:e.early||"" };
+}
+// Glute priority: hip thrust first on lower-body days, with your own plan's targets and cues if it has them
+function glutesFirst(intro, swaps) {
+  const h=DAYS.map(d=>(BASE.defs[d]||[]).find(x=>x.name==="Hip Thrust")).find(Boolean), L=LIBMAP["Hip Thrust"];
+  const name=swaps["Hip Thrust"]||"Hip Thrust", alts=h?h.alts:["Machine Hip Thrust","Smith Hip Thrust","DB Glute Bridge"];
+  return { name, orig:"Hip Thrust", prog:true, extra:true, rl:h?h.rl:8, rh:h?h.rh:12, rpe:intro?8:9, s:intro?2:3,
+    wj:h?h.wj:5, rest:h?h.rest:120, alts:["Hip Thrust",...alts].filter(a=>a!==name),
+    note:name==="Hip Thrust"?(h?h.note:(L&&L.note)||""):"", tech:"", wu:"2-3", early:intro?"~6-7":"~7-8" };
+}
+// PLAN and DEFS are your plan with this week of the program laid over it
+function progRefresh() {
+  const copy=o=>JSON.parse(JSON.stringify(o));
+  if(!BASE) BASE={ plan:copy(PLAN), defs:copy(DEFS) };
+  else { PLAN=copy(BASE.plan); DEFS=copy(BASE.defs); }
+  if(!progActive()) return;
+  const n=progWeek(), W=PROG.weeks[n-1], days=progDays(), swaps=PROG.swaps||{};
+  const intro=W.sessions.every(s=>s.ex.every(e=>!e.tech)); // easier intro weeks have no last-set technique
+  DAYS.forEach(d=>{
+    const s=W.sessions[days.indexOf(d)];
+    if(!s){ // runs and rest days stay; other lifting days rest
+      if(PLAN[d].type==="gym"){ PLAN[d]={ type:"rest", label:"Rest", icon:"😴", color:"#555", muscles:"Walk, stretch, recover" }; delete DEFS[d]; }
+      return;
+    }
+    const lower=/lower|leg/i.test(s.label);
+    PLAN[d]={ type:"gym", prog:true, label:s.label, icon:lower?"🦵":"💪", color:"#C0392B",
+      muscles:[s.focus&&`${s.focus} focus`,`${W.block||PROG.name} · week ${n}${intro?" · intro week":""}`].filter(Boolean).join(" · ") };
+    DEFS[d]=s.ex.map(e=>progEx(e,swaps)).filter(Boolean);
+    if(PROG.glutes&&lower){ const g=glutesFirst(intro,swaps); if(!DEFS[d].some(x=>x.name===g.name)) DEFS[d].unshift(g); }
+  });
+}
+function progMut(fn) { fn(PROG); sSet("program",PROG); progRefresh(); }
+PROG=ME&&sGet("program");
+if(!PROG||!Array.isArray(PROG.weeks)||!PROG.weeks.length) PROG=null;
+progRefresh();
 
 function todayName() { return DAYS[new Date().getDay()===0?6:new Date().getDay()-1]; }
 function weekKey(offset=0) {
@@ -1264,6 +1333,7 @@ function renderView() {
   if(S.view==="history"||S.view==="hist-detail"){renderHistory(app);return;}
   if(S.view==="mob"){renderMobility(app);return;}
   if(S.view==="runs"){renderRuns(app);return;}
+  if(S.view==="program"){renderProgram(app);return;}
 
   // Day swap hint bar
   if(S.daySwapSrc) {
@@ -1310,6 +1380,7 @@ function renderView() {
     strip.appendChild(b);
   });
   app.appendChild(strip);
+  if(PROG) app.appendChild(progBar());
 
   const sh=mk("div","sess-hdr");
   const sico=mk("div","sess-ico"); sico.style.background=`color-mix(in srgb,${p.color} 13%,transparent)`; sico.textContent=p.icon;
@@ -1388,7 +1459,8 @@ function renderGym(container, plan) {
     });
     container.appendChild(gp);
   }
-  if(MYPLAN) container.appendChild(warmupEl(S.day));
+  if(plan.prog) container.appendChild(progWarmupEl());
+  else if(MYPLAN) container.appendChild(warmupEl(S.day));
 
   log.exercises.forEach((ex,ei)=>{
     const card=mk("div","ex-card");
@@ -1399,13 +1471,16 @@ function renderGym(container, plan) {
     const nameInp=mk("input","ex-name-inp"); nameInp.placeholder=`Exercise ${ei+1}`; nameInp.value=ex.name||"";
     if(MYPLAN){ nameInp.setAttribute("list","exlib"); nameInp.addEventListener("change",()=>fillFromLib(ei,nameInp.value)); }
     const vid=mkT("a","ex-vid","▶"); vid.target="_blank"; vid.rel="noopener"; vid.title="Form video";
-    const setVid=()=>{ const n=nameInp.value.trim(); vid.href=n?exVideo(n):""; vid.style.visibility=n?"visible":"hidden"; };
+    const setVid=()=>{ const n=nameInp.value.trim(); vid.href=n?progLink(n)||exVideo(n):""; vid.style.visibility=n?"visible":"hidden"; };
     setVid();
     nameInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].name=nameInp.value); setVid(); });
     const rmBtn=mkT("button","ex-rm","✕");
     rmBtn.onclick=()=>{ mutLog(l=>l.exercises.splice(ei,1)); S.swapIdx=null; render(); };
     topRow.append(handle,nameInp,vid,rmBtn);
     card.appendChild(topRow);
+    // Program sessions: this week's last-set technique, effort and warm-up sets
+    const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name));
+    if(defEx&&defEx.prog) card.appendChild(progInfoEl(defEx));
     const note=exNote(ex.name);
     if(note) card.appendChild(mkT("div","ex-note",note));
     card.appendChild(setupNoteEl(ex.name,gym));
@@ -1438,8 +1513,8 @@ function renderGym(container, plan) {
     cfgRow.appendChild(mkT("span","ex-config-label","s"));
 
     // Swap button: options come from the plan entry this exercise belongs to, wherever it has been dragged
-    const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name))||dayDefs[ei];
-    const allOpts=defEx?[defEx.name,...defEx.alts]:[];
+    const slot=defEx||dayDefs[ei];
+    const allOpts=slot?[slot.name,...slot.alts]:[];
     const alts=allOpts.filter(n=>n!==ex.name);
     if(alts.length){
       const sb=mkT("button","swap-btn",S.swapIdx===ei?"Cancel":"⇄ Swap");
@@ -1468,8 +1543,13 @@ function renderGym(container, plan) {
     if(S.swapIdx===ei&&alts.length){
       const sp=mk("div","swap-panel");
       sp.appendChild(mkT("div","swap-title","Choose alternative"));
+      // Program sessions: swap for today, or for every week of the program
+      const prog=slot&&slot.prog;
+      if(prog) sp.appendChild(chipsEl([[false,"Just today"],[true,"Every week"]],v=>!!S.swapAll===v,v=>S.swapAll=v));
+      const keep=alt=>{ if(prog&&S.swapAll) progMut(p=>{ p.swaps=p.swaps||{}; if(alt===slot.orig) delete p.swaps[slot.orig]; else p.swaps[slot.orig]=alt; }); };
       alts.forEach(alt=>{
-        const t=exTargets(alt,S.day), lastAlt=lastDone(alt,gym);
+        // A program's alternatives take the same sets, reps and effort as the exercise they replace
+        const t=prog?{ rl:slot.rl, rh:slot.rh, rpe:slot.rpe, wj:(ALTS[alt]||{}).wj??slot.wj, rest:slot.rest }:exTargets(alt,S.day), lastAlt=lastDone(alt,gym);
         const ob=mk("button","swap-opt");
         const top=mk("div","swap-opt-top");
         top.appendChild(mkT("span","swap-opt-name",alt));
@@ -1481,10 +1561,20 @@ function renderGym(container, plan) {
             const e=l.exercises[ei]; e.name=alt;
             if(t){ e.rl=t.rl; e.rh=t.rh; e.rpe=t.rpe; e.wj=t.wj; e.rest=t.rest; }
           });
+          keep(alt); // after today's log is saved, so its order isn't affected
           S.swapIdx=null; render();
         };
         sp.appendChild(ob);
       });
+      if(prog&&!slot.extra){
+        const skip=mkT("button","link-btn","Skip it");
+        skip.onclick=()=>{
+          mutLog(l=>l.exercises.splice(ei,1));
+          if(S.swapAll) progMut(p=>{ p.swaps=p.swaps||{}; p.swaps[slot.orig]=""; });
+          S.swapIdx=null; render();
+        };
+        sp.appendChild(skip);
+      }
       card.appendChild(sp);
     }
 
@@ -1541,7 +1631,7 @@ function renderGym(container, plan) {
   addEx.onclick=()=>{ mutLog(l=>l.exercises.push({name:"",rl:null,rh:null,rpe:8,wj:2.5,sets:[{w:"",r:"",rpe:""}]})); render(); };
   container.appendChild(addEx);
   // Personal plans: keep today's changes for every week from now on
-  if(MYPLAN&&S.logs[S.day]){
+  if(MYPLAN&&S.logs[S.day]&&!plan.prog){
     const keepB=mkT("button","add-ex-btn",`Make this my usual ${S.day}`);
     keepB.onclick=()=>{ keepAsPlan(); keepB.textContent="Saved to your plan ✓"; };
     container.appendChild(keepB);
@@ -1692,8 +1782,8 @@ function renderRuns(app){
 }
 
 // ── Backup: every logged week in one JSON file ───────────────────────────────
-// Personal plan, setup answers and food details travel with the logs
-const EXTRA_KEYS=["plan","me","nutrition"];
+// Personal plan, setup answers, food details and any training program travel with the logs
+const EXTRA_KEYS=["plan","me","nutrition","program"];
 function exportBackup() {
   const data={};
   sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
@@ -1718,6 +1808,7 @@ function importBackup(file) {
   const rd=new FileReader();
   rd.onload=()=>{
     let b; try{ b=JSON.parse(rd.result); }catch{ alert("That file isn't a Bulk Log backup."); return; }
+    if(b&&b.app==="bulk-log-program"&&Array.isArray(b.weeks)&&b.weeks.length){ loadProgram(b); return; }
     const data=b&&b.data&&typeof b.data==="object"?b.data:b;
     const keys=Object.keys(data||{}).filter(k=>/^logs:\d{4}-\d{2}-\d{2}$/.test(k)&&data[k]&&typeof data[k]==="object");
     const setup=data&&data[SETUP_KEY]&&typeof data[SETUP_KEY]==="object"?data[SETUP_KEY]:null;
@@ -1727,13 +1818,14 @@ function importBackup(file) {
       if(b&&Array.isArray(b.runs)){ RUNS=null; setRuns(b); render(); alert(`Loaded ${b.runs.length} Strava runs.`); return; }
       alert("No workout weeks found in that file."); return;
     }
-    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`,extra.includes("plan")&&"your plan"].filter(Boolean).join(" and ")||"your details";
+    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`,extra.includes("plan")&&"your plan",extra.includes("program")&&"your training program"].filter(Boolean).join(" and ")||"your details";
     const when=b.exported?` from ${new Date(b.exported).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`:"";
     if(!confirm(`Restore ${what}${when}?\n\nWeeks and setup notes in the backup replace the same ones on this device. Everything else is kept.`)) return;
     keys.forEach(k=>sSet(k,data[k]));
     if(nSetup) sSet(SETUP_KEY,{...(sGet(SETUP_KEY)||{}),...setup});
     extra.forEach(k=>sSet(k,data[k]));
     if(extra.includes("plan")){ MYSETUP=sGet("me")||MYSETUP; applyPlan(sGet("plan")); }
+    if(extra.includes("program")){ PROG=sGet("program"); progRefresh(); }
     S.logs=sGet(`logs:${WK}`)||{};
     S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
     render();
@@ -1907,6 +1999,7 @@ function restoreFirst(file) {
   const rd=new FileReader();
   rd.onload=()=>{
     let b; try{ b=JSON.parse(rd.result); }catch{ alert("That file isn't a Bulk Log backup."); return; }
+    if(b&&b.app==="bulk-log-program"){ alert("That's a training program. Build your plan first, then load it from History > Import backup."); return; }
     const data=b&&b.data&&typeof b.data==="object"?b.data:b;
     const keys=Object.keys(data||{}).filter(k=>(/^logs:\d{4}-\d{2}-\d{2}$/.test(k)||k===SETUP_KEY||EXTRA_KEYS.includes(k))&&data[k]&&typeof data[k]==="object");
     if(!keys.length){ alert("No workout weeks found in that file."); return; }
@@ -2000,6 +2093,12 @@ function renderPlan(app) {
     t.firstChild.style.color="#27AE60"; hi.append(mkT("span","","✅"),t); content.appendChild(hi);
   }
   const sc=mk("div","ex-card");
+  if(progActive()){
+    const pc=mk("div","hint"); pc.style.background="#B088D018"; pc.style.border="1px solid #B088D055";
+    const t=mk("div"); t.append(mkT("div","hint-type",`${PROG.name} is running`),mkT("div","hint-msg","Week follows the program for now. This plan comes back when it ends or you stop it."));
+    t.firstChild.style.color="#B088D0"; pc.append(mkT("span","","🧱"),t); pc.onclick=()=>{ S.view="program"; render(); };
+    content.appendChild(pc);
+  }
   sc.appendChild(mkT("div","mob-sec-t","Your setup"));
   sc.appendChild(mkT("div","mob-note",setupSummary(MYSETUP||{})));
   const ch=mkT("button","swap-btn plan-setup-btn","Change setup and rebuild");
@@ -2153,6 +2252,149 @@ function renderRest(container) {
   const ta=mk("textarea","notes-ta"); ta.placeholder="Sleep, soreness, steps, anything to remember..."; ta.value=log.notes||"";
   ta.addEventListener("change",()=>{ mutLog(l=>l.notes=ta.value); });
   container.appendChild(ta);
+}
+
+// ── Training program screens ──────────────────────────────────────────────────
+// What each last-set technique means
+const TECH={
+  "Failure":"Take the last set to failure: stop when you can't do another full rep with good form.",
+  "Failure + LLPs (Extend set)":"Take the last set to failure, then keep going with lengthened partials: part reps in the stretched half of the movement, until you can't move it.",
+  "Myo-reps":"Take the last set to failure, rest for 3–5 deep breaths, then do as many reps as you can again. Repeat for a couple of short mini-sets.",
+  "Static Stretch (30s)":"After the last set to failure, hold the stretched position (for example the bottom of a calf raise) for 30 seconds.",
+};
+function loadProgram(b) {
+  const n=b.weeks.length, per=b.weeks[0].sessions&&b.weeks[0].sessions.length;
+  if(!per||!b.weeks.every(w=>Array.isArray(w.sessions)&&w.sessions.length===per&&w.sessions.every(s=>Array.isArray(s.ex)))){
+    alert("That program file looks damaged."); return;
+  }
+  if(!confirm(`Load ${b.name||"this program"}${b.by?" by "+b.by:""}, ${n} weeks?\n\nThis week becomes week 1 and the Week view follows the program. Days you've already logged keep what you did, and your own plan comes back if you stop it.`)) return;
+  PROG={ ...b, start:WK, days:null, swaps:{}, glutes:CLASSIC||((MYSETUP||{}).pri||[]).includes("glutes") };
+  sSet("program",PROG); progRefresh();
+  S.view="program"; render();
+}
+function progBar() {
+  const n=progWeek(), tot=PROG.weeks.length, b=mk("button","prog-bar");
+  const t=n<1?`${PROG.name} starts ${new Date(PROG.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`
+    :n>tot?`${PROG.name} finished`:`${PROG.weeks[n-1].block?PROG.weeks[n-1].block+" block · ":""}Week ${n} of ${tot}`;
+  b.append(mkT("span","",`🧱 ${t}`),mkT("span","prog-bar-go","›"));
+  b.onclick=()=>{ S.view="program"; render(); };
+  return b;
+}
+// On each program exercise: tap to see what the technique and warm-up sets mean
+function progInfoEl(d) {
+  const det=mk("details","prog-info");
+  const wu=d.wu&&lastNum(d.wu);
+  const bits=[d.extra&&"Glutes first", d.tech?`Last set: ${d.tech}`:`Last set RPE ${d.rpe}`, d.early&&`early sets RPE ${d.early}`,
+    d.wu&&`${d.wu.replace("-","–")} warm-up set${wu===1?"":"s"}`];
+  det.appendChild(mkT("summary","",bits.filter(Boolean).join(" · ")));
+  const spec=((PROG.warmup||{}).specific||[]).find(([l])=>parseInt(l)===wu);
+  [d.tech&&TECH[d.tech], !d.tech&&"An easier week: leave 1–3 reps in the tank.", spec&&`Warm-up sets: ${spec[1]}`]
+    .filter(Boolean).forEach(t=>det.appendChild(mkT("div","",t)));
+  return det;
+}
+function progWarmupEl() {
+  const det=mk("details","warm"); det.open=!!S.warmOpen;
+  det.addEventListener("toggle",()=>{ S.warmOpen=det.open; });
+  det.appendChild(mkT("summary","warm-sum","Warm-up · 5–10 minutes"));
+  ((PROG.warmup||{}).general||[]).forEach(([dose,n])=>{
+    const row=mk("div","mob-row"), left=mk("div","mob-left");
+    left.appendChild(mkT("div","mob-name",n)); row.append(left,mkT("div","mob-dose",dose||""));
+    det.appendChild(row);
+  });
+  det.appendChild(mkT("div","mob-note","Then the warm-up sets shown on each exercise before its working sets."));
+  return det;
+}
+
+function renderProgram(app) {
+  const content=mk("div","content"); app.appendChild(content);
+  const back=mkT("button","back-btn","← Back"); back.onclick=()=>{ S.view="log"; render(); };
+  content.appendChild(back);
+  if(!PROG){ content.appendChild(mkT("div","mob-note","No program loaded.")); return; }
+  const n=progWeek(), tot=PROG.weeks.length, wn=Math.min(Math.max(n,1),tot), W=PROG.weeks[wn-1];
+
+  const top=mk("div","ex-card");
+  top.appendChild(mkT("div","mob-sec-t",PROG.name||"Training program"));
+  top.appendChild(mkT("div","mob-sec-w",[PROG.by,PROG.level,`${tot} weeks`].filter(Boolean).join(" · ")));
+  const blocks=[];
+  PROG.weeks.forEach((w,i)=>{ const l=blocks[blocks.length-1]; if(l&&l.b===w.block) l.to=i+1; else blocks.push({ b:w.block, from:i+1, to:i+1 }); });
+  if(blocks.some(x=>x.b)) top.appendChild(mkT("div","mob-note",blocks.map(x=>`${x.b} block: weeks ${x.from}–${x.to}`).join(" · ")));
+  top.appendChild(mkT("div","fld-lbl prog-lbl","This week is"));
+  top.appendChild(chipsEl([[0,"Not started"],...PROG.weeks.map((w,i)=>[i+1,`Week ${i+1}`])],
+    v=>v===0?n<1:v===n, v=>progMut(p=>p.start=addWeeks(WK,v===0?1:1-v))));
+  top.appendChild(mkT("div","q-h prog-lbl","Repeating or skipping a week? Pick the week you're on and the rest follow on."));
+  content.appendChild(top);
+
+  // Weekdays for the sessions
+  const per=W.sessions.length, days=progDays();
+  const picked=Array.isArray(PROG.days)?PROG.days:days;
+  const dc=mk("div","ex-card");
+  dc.appendChild(mkT("div","mob-sec-t","Training days"));
+  dc.appendChild(mkT("div","mob-sec-w",`Pick ${per} days. ${W.sessions.map(s=>s.label).join(", ")} go on them in that order.`));
+  dc.appendChild(chipsEl(DAYS.map(d=>[d,d.slice(0,3)]),d=>picked.includes(d),d=>progMut(p=>{
+    p.days=picked.includes(d)?picked.filter(x=>x!==d):picked.length<per?[...picked,d]:picked;
+  })));
+  dc.appendChild(mkT("div","mob-note prog-lbl",picked.length===per
+    ?DAYS.filter(d=>picked.includes(d)).map((d,i)=>`${d.slice(0,3)} ${W.sessions[i].label}`).join(" · ")
+    :`${picked.length} of ${per} picked. Until then: ${days.map((d,i)=>`${d.slice(0,3)} ${W.sessions[i].label}`).join(" · ")}`));
+  dc.appendChild(mkT("div","q-h prog-lbl","Your runs stay where they are. Other days are rest days."));
+  content.appendChild(dc);
+
+  const gc=mk("div","ex-card");
+  gc.appendChild(mkT("div","mob-sec-t","Glutes first"));
+  gc.appendChild(mkT("div","mob-sec-w","Adds hip thrust as the first exercise on lower-body days."));
+  gc.appendChild(chipsEl([[true,"On"],[false,"Off"]],v=>!!PROG.glutes===v,v=>progMut(p=>p.glutes=v)));
+  content.appendChild(gc);
+
+  const sw=Object.entries(PROG.swaps||{});
+  const sc=mk("div","ex-card");
+  sc.appendChild(mkT("div","mob-sec-t","Your swaps"));
+  sc.appendChild(mkT("div","mob-sec-w",sw.length?"These replace the program's exercise in every week.":"In Week, tap ⇄ Swap on an exercise and choose Every week to keep a swap or skip for the whole program."));
+  sw.forEach(([from,to])=>{
+    const row=mk("div","mob-row"), left=mk("div","mob-left");
+    left.append(mkT("div","mob-name",to||"Skipped"),mkT("div","mob-note",`Instead of ${from}`));
+    const x=mkT("button","ex-rm","✕"); x.title="Undo";
+    x.onclick=()=>{ progMut(p=>{ delete p.swaps[from]; }); render(); };
+    row.append(left,x); sc.appendChild(row);
+  });
+  content.appendChild(sc);
+
+  // The week at a glance, with your swaps and glutes first
+  const wc=mk("div","ex-card");
+  wc.appendChild(mkT("div","mob-sec-t",`Week ${wn} at a glance`));
+  const swaps=PROG.swaps||{}, intro=W.sessions.every(s=>s.ex.every(e=>!e.tech));
+  if(intro) wc.appendChild(mkT("div","mob-sec-w","Intro week: easier sets, nothing to failure."));
+  W.sessions.forEach((s,i)=>{
+    wc.appendChild(mkT("div","fld-lbl prog-lbl",`${(picked.length===per?DAYS.filter(d=>picked.includes(d)):days)[i].slice(0,3)} · ${s.label}${s.focus?" ("+s.focus.toLowerCase()+")":""}`));
+    const exs=s.ex.map(e=>progEx(e,swaps)).filter(Boolean);
+    if(PROG.glutes&&/lower|leg/i.test(s.label)) exs.unshift(glutesFirst(intro,swaps));
+    exs.forEach(e=>{
+      const row=mk("div","mob-row"), left=mk("div","mob-left");
+      left.appendChild(mkT("div","mob-name",e.name));
+      if(e.tech&&e.tech!=="Failure") left.appendChild(mkT("div","mob-note",e.tech));
+      row.append(left,mkT("div","mob-dose",`${e.s} × ${e.rl}–${e.rh}`));
+      wc.appendChild(row);
+    });
+  });
+  content.appendChild(wc);
+
+  const hc=mk("div","ex-card");
+  hc.appendChild(mkT("div","mob-sec-t","How the sets work"));
+  [...new Set(PROG.weeks.flatMap(w=>w.sessions.flatMap(s=>s.ex.map(e=>e.tech))).filter(t=>t&&TECH[t]))]
+    .forEach(t=>{ hc.appendChild(mkT("div","fld-lbl prog-lbl",t)); hc.appendChild(mkT("div","food-p",TECH[t])); });
+  (PROG.notes||[]).forEach(t=>hc.appendChild(mkT("div","food-p",t)));
+  const spec=(PROG.warmup||{}).specific||[];
+  if(spec.length){
+    hc.appendChild(mkT("div","fld-lbl prog-lbl","Warm-up sets"));
+    spec.forEach(([l,t])=>hc.appendChild(mkT("div","food-p prog-pre",`${l}: ${t}`)));
+  }
+  content.appendChild(hc);
+
+  const stop=mkT("button","link-btn prog-stop","Stop this program");
+  stop.onclick=()=>{
+    if(!confirm(`Stop ${PROG.name||"this program"}?\n\nYour history stays. The Week view goes back to your own plan.`)) return;
+    sDel("program"); PROG=null; progRefresh(); S.view="log"; render();
+  };
+  content.appendChild(stop);
 }
 
 // ── Food: calories and macros from your details and goal ──────────────────────
