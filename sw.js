@@ -26,7 +26,7 @@ self.addEventListener('message', e => {
       await ping('10 seconds left', `Get set · ${next}`, [150]);
     }
     await until(d.end);
-    await ping('Rest done', next, [300, 100, 300]);
+    await ping('Rest done', next, [600, 200, 600, 200, 600]);
   })());
 });
 
