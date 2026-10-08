@@ -195,6 +195,14 @@
   .warm-sum { font-size: 13px; font-weight: 700; color: #C8C6C0; cursor: pointer; }
   .prog-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 9px 20px; background: #B088D014; border: none; border-bottom: 1px solid #B088D033; color: #B088D0; font-size: 12px; font-weight: 600; text-align: left; flex-shrink: 0; }
   .prog-bar-go { font-size: 16px; line-height: 1; }
+  .sess-time { font-size: 11px; color: #4A9EBF; margin-top: 2px; }
+  .add-row { display: flex; gap: 6px; margin-top: 6px; }
+  .add-row .add-set-btn { flex: 1; margin-top: 0; }
+  .tech-sel { background: none; border: 1px dashed #2A2A30; border-radius: 6px; color: #666; font-size: 12px; padding: 0 6px; max-width: 50%; }
+  .tech-sel.on { color: #B088D0; border: 1px solid #B088D055; }
+  .tech-box { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -1px 0 6px 33px; font-size: 11px; color: #B088D0; }
+  .tech-box .tech-inp { width: 46px; padding: 5px 4px; font-size: 12px; }
+  .tech-go { font-size: 11px; color: #B088D0; background: none; border: 1px solid #B088D055; border-radius: 5px; padding: 4px 9px; font-weight: 600; }
   .prog-info { font-size: 11px; color: #B088D0; margin: -2px 0 8px 34px; }
   .prog-info summary { cursor: pointer; }
   .prog-info div { color: #888; margin-top: 4px; line-height: 1.4; white-space: pre-line; }
@@ -867,6 +875,7 @@ function mutLog(fn) {
   S.logs={...S.logs,[S.day]:l};
   sSet(`logs:${WK}`,S.logs);
   S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
+  updEta();
 }
 function renderSaveBtn() {} // no-op, kept for safety
 
@@ -945,7 +954,9 @@ function lastDone(name, gym) {
   return other;
 }
 function lastLabel(last) { return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)}`; }
-function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}`).join(", "); }
+function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}${extraTxt(s)}`).join(", "); }
+// Lengthened partials and myo-rep mini-sets done after a set
+function extraTxt(s) { const m=(s.myo||[]).filter(Boolean); return (s.p?` +${s.p}p`:"")+(m.length?` +${m.join("+")} myo`:""); }
 
 function repsCol(r,rl,rh){
   if(!r||!rl) return "#E8E6E1";
@@ -1387,6 +1398,7 @@ function renderView() {
   const sinfo=mk("div");
   sinfo.appendChild(mkT("div","sess-title",p.label));
   if(p.muscles) sinfo.appendChild(mkT("div","sess-muscles",p.muscles));
+  if(p.type==="gym"){ const et=mkT("div","sess-time",etaText()); et.id="sess-time"; sinfo.appendChild(et); }
   sh.append(sico,sinfo); app.appendChild(sh);
 
   const content=mk("div","content"); app.appendChild(content);
@@ -1409,7 +1421,7 @@ function workoutText() {
     lines.push(`Run: ${log.distance||"—"} km, ${log.duration||"—"} min`);
   } else {
     log.exercises.forEach(ex=>{
-      const sets=(ex.sets||[]).filter(s=>s.w||s.r).map(s=>`${s.w||"BW"}×${s.r||"?"}${s.rpe?"@"+s.rpe:""}`);
+      const sets=(ex.sets||[]).filter(s=>s.w||s.r).map(s=>`${s.w||"BW"}×${s.r||"?"}${s.rpe?"@"+s.rpe:""}${extraTxt(s)}`);
       if(!sets.length) return;
       const tgt=ex.rl?` (${ex.rl}${ex.rh&&ex.rh!==ex.rl?"–"+ex.rh:""}, RPE ${ex.rpe||"—"})`:"";
       lines.push(`${ex.name||"Exercise"}${tgt}: ${sets.join(", ")}`);
@@ -1481,6 +1493,7 @@ function renderGym(container, plan) {
     // Program sessions: this week's last-set technique, effort and warm-up sets
     const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name));
     if(defEx&&defEx.prog) card.appendChild(progInfoEl(defEx));
+    const tech=techOf(ex,defEx);
     const note=exNote(ex.name);
     if(note) card.appendChild(mkT("div","ex-note",note));
     card.appendChild(setupNoteEl(ex.name,gym));
@@ -1558,7 +1571,7 @@ function renderGym(container, plan) {
         ob.appendChild(mkT("div","swap-opt-last",lastAlt?lastLabel(lastAlt):"Not done yet"));
         ob.onclick=()=>{
           mutLog(l=>{
-            const e=l.exercises[ei]; e.name=alt;
+            const e=l.exercises[ei]; e.name=alt; delete e.tech;
             if(t){ e.rl=t.rl; e.rh=t.rh; e.rpe=t.rpe; e.wj=t.wj; e.rest=t.rest; }
           });
           keep(alt); // after today's log is saved, so its order isn't affected
@@ -1603,7 +1616,12 @@ function renderGym(container, plan) {
         ri.style.borderColor=ri.value&&ex.rl?nc+"88":"#2A2A30";
       });
       ri.addEventListener("blur",()=>{
-        if(ri.value) startRest(ex.name, ex.rest||90);
+        if(!ri.value) return;
+        // After the last set, myo-reps and the stretch get their own short timers instead of the full rest
+        const cur=getLog().exercises[ei]||ex, t=techOf(cur,defEx), last=si===(cur.sets||[]).length-1;
+        if(last&&t==="Myo-reps") startRest(`${ex.name} · myo-rep rest`,15);
+        else if(last&&t==="Static Stretch (30s)") startRest(`${ex.name} · hold the stretch`,30);
+        else startRest(ex.name, ex.rest||90);
       });
 
       const rpei=mk("input","set-rpe"); rpei.type="number"; rpei.placeholder="—"; rpei.value=set.rpe||"";
@@ -1616,11 +1634,22 @@ function renderGym(container, plan) {
       const rm=mkT("button","set-rm","✕");
       rm.onclick=()=>{ mutLog(l=>l.exercises[ei].sets.splice(si,1)); render(); };
       row.append(wi,ri,rpei,rm); card.appendChild(row);
+      if(si===ex.sets.length-1){ const tb=techBoxEl(ex,ei,si,tech); if(tb) card.appendChild(tb); }
     });
 
+    const addRow=mk("div","add-row");
     const addSet=mkT("button","add-set-btn","+ Add Set");
     addSet.onclick=()=>{ mutLog(l=>l.exercises[ei].sets.push({w:"",r:"",rpe:""})); render(); };
-    card.appendChild(addSet);
+    // Last-set technique: the program's, or one you pick (kept for this exercise from then on)
+    const ts=mk("select","tech-sel"+(tech?" on":"")); ts.title="Last-set technique";
+    TECH_OPTS.forEach(([v,t])=>{ const o=document.createElement("option"); o.value=v; o.textContent="⚡ "+t; o.selected=v===tech; ts.appendChild(o); });
+    ts.onchange=()=>{
+      const v=ts.value;
+      mutLog(l=>l.exercises[ei].tech=v);
+      if(!(defEx&&defEx.prog)&&(ex.name||"").trim()){ const m=sGet("techs")||{}; if(v) m[ex.name.trim()]=v; else delete m[ex.name.trim()]; sSet("techs",m); }
+      render();
+    };
+    addRow.append(addSet,ts); card.appendChild(addRow);
 
     // Set up drag after card is built
     setupDrag(handle, card, ei);
@@ -1783,7 +1812,7 @@ function renderRuns(app){
 
 // ── Backup: every logged week in one JSON file ───────────────────────────────
 // Personal plan, setup answers, food details and any training program travel with the logs
-const EXTRA_KEYS=["plan","me","nutrition","program"];
+const EXTRA_KEYS=["plan","me","nutrition","program","techs"];
 function exportBackup() {
   const data={};
   sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
@@ -1863,7 +1892,7 @@ function renderHistory(app){
           const chips=mk("div","hist-sets");
           (ex.sets||[]).forEach(s=>{
             if(!s.w) return;
-            const txt=s.rpe?`${s.w}kg × ${s.r} @ RPE${s.rpe}`:`${s.w}kg × ${s.r}`;
+            const txt=(s.rpe?`${s.w}kg × ${s.r} @ RPE${s.rpe}`:`${s.w}kg × ${s.r}`)+extraTxt(s);
             chips.appendChild(mkT("span","hist-chip",txt));
           });
           card.appendChild(chips);
@@ -2141,6 +2170,8 @@ function planDayCard(d) {
   li.addEventListener("input",()=>planMut(p=>p.days[d].label=li.value.trim()||"Workout"));
   card.appendChild(li);
   if(x.muscles) card.appendChild(mkT("div","mob-note",x.muscles));
+  const techs=sGet("techs")||{};
+  card.appendChild(mkT("div","mob-note",`⏱ About ${fmtMin(480+(x.exercises||[]).reduce((t,e)=>t+exSecs({ n:e.s, rl:e.rl, rh:e.rh, rest:e.rest, tech:techs[e.name]||"" }),0))} with the warm-up`));
   (x.exercises||[]).forEach((e,i)=>{
     const row=mk("div","plan-ex");
     const r1=mk("div","ex-top-row");
@@ -2254,6 +2285,78 @@ function renderRest(container) {
   container.appendChild(ta);
 }
 
+// ── Time estimates: rough minutes for a session from its sets, reps, rest and techniques ──
+const TECH_SECS={ "Myo-reps":90, "Failure + LLPs (Extend set)":20, "Static Stretch (30s)":30 };
+function rangeMid(s) { const m=String(s||"").match(/(\d+)(?:\s*[-–]\s*(\d+))?/); return m?(+m[1]+ +(m[2]||m[1]))/2:0; }
+// One exercise: warm-up sets (a minute each), working sets, rest between them, and 90s to move on to the next
+function exSecs(e, done=0) {
+  const left=Math.max(0,(e.n||0)-done); if(!left) return 0;
+  const reps=((+e.rl||8)+(+e.rh||+e.rl||12))/2, set=Math.min(80,Math.max(25,10+3.5*reps));
+  return left*set+(done?left:left-1)*(+e.rest||90)+90+(done?0:(e.wu||0)*60)+(TECH_SECS[e.tech]||0);
+}
+// Program warm-up ~7 min, personal plan ~8, the original plan's Mobility tab warm-ups ~8 (upper) or ~10 (lower)
+const warmSecs=day=>PLAN[day]&&PLAN[day].prog?420:MYPLAN||!/leg|lower/i.test(PLAN[day]&&PLAN[day].label)?480:600;
+function fmtMin(secs) { return `${Math.max(5,Math.round(secs/300)*5)} min`; }
+function dayDef(day, name) { return (DEFS[day]||[]).find(d=>d.name===name||(d.alts||[]).includes(name)); }
+// "Home:" exercises are done at home, so they're counted separately from the gym time
+function sessionSecs(day, log) {
+  let t=0, home=0, started=false;
+  (log.exercises||[]).forEach(ex=>{
+    const def=dayDef(day,ex.name), sets=ex.sets||[], done=sets.filter(s=>s.r).length;
+    const x=exSecs({ n:sets.length, rl:ex.rl, rh:ex.rh, rest:ex.rest, wu:def&&def.prog?rangeMid(def.wu):0, tech:techOf(ex,def) }, done);
+    if(/^home:/i.test(ex.name||"")) home+=x; else { t+=x; if(done) started=true; }
+  });
+  return { secs:started?t:t+warmSecs(day), home, started };
+}
+function etaText() {
+  const p=PLAN[S.day]; if(!p||p.type!=="gym") return "";
+  const { secs, home, started }=sessionSecs(S.day,getLog());
+  const at=new Date(Date.now()+secs*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}), today=S.day===todayName();
+  const hm=home?` · plus ${fmtMin(home)} at home`:"";
+  if(started&&!secs) return `⏱ All gym sets logged${hm}`;
+  return (started?`⏱ About ${fmtMin(secs)} left${today?` · done around ${at}`:""}`
+    :`⏱ About ${fmtMin(secs)}${today?` · done by ${at} if you start now`:""}`)+hm;
+}
+function updEta() { const el=document.getElementById("sess-time"); if(el) el.textContent=etaText(); }
+
+// ── Last-set techniques: myo-reps, lengthened partials and a stretch, logged on the last set ──
+const TECH_OPTS=[["","Normal last set"],["Failure","To failure"],["Failure + LLPs (Extend set)","+ Partials"],["Myo-reps","Myo-reps"],["Static Stretch (30s)","+ 30s stretch"]];
+// Today's choice, else the program's, else the one you picked for this exercise before
+function techOf(ex, def) {
+  if(ex.tech!=null) return ex.tech;
+  if(def&&def.prog) return def.tech||"";
+  return (sGet("techs")||{})[(ex.name||"").trim()]||"";
+}
+function techBoxEl(ex, ei, si, tech) {
+  const set=ex.sets[si], box=mk("div","tech-box");
+  const inp=(val,ph)=>{ const i=mk("input","set-inp tech-inp"); i.type="number"; i.inputMode="numeric"; i.placeholder=ph; i.value=val||""; return i; };
+  if(tech==="Failure + LLPs (Extend set)"){
+    box.appendChild(mkT("span","","Then partials in the stretched half:"));
+    const i=inp(set.p,"reps");
+    i.addEventListener("input",()=>mutLog(l=>{ const s=l.exercises[ei].sets[si]; if(i.value) s.p=i.value; else delete s.p; }));
+    box.appendChild(i);
+  } else if(tech==="Myo-reps"){
+    const lb=mkT("span","","Mini-sets, 3–5 breaths (about 15s) apart:"); lb.style.flexBasis="100%"; box.appendChild(lb);
+    const vals=[...(set.myo||[])];
+    const add=k=>{
+      const i=inp(vals[k],"+");
+      i.addEventListener("input",()=>{
+        vals[k]=i.value;
+        mutLog(l=>{ const s=l.exercises[ei].sets[si], m=[...vals]; while(m.length&&!m[m.length-1]) m.pop(); if(m.length) s.myo=m; else delete s.myo; });
+        if(i.value&&k===box.querySelectorAll(".tech-inp").length-1&&k<4) add(k+1);
+      });
+      i.addEventListener("blur",()=>{ if(i.value) startRest(`${ex.name} · myo-rep rest`,15); });
+      box.appendChild(i);
+    };
+    for(let k=0;k<Math.min(5,vals.length+1);k++) add(k);
+  } else if(tech==="Static Stretch (30s)"){
+    box.appendChild(mkT("span","","Then hold the stretched position"));
+    const b=mkT("button","tech-go","▶ 30s"); b.onclick=()=>startRest(`${ex.name} · hold the stretch`,30);
+    box.appendChild(b);
+  } else return null;
+  return box;
+}
+
 // ── Training program screens ──────────────────────────────────────────────────
 // What each last-set technique means
 const TECH={
@@ -2364,9 +2467,10 @@ function renderProgram(app) {
   const swaps=PROG.swaps||{}, intro=W.sessions.every(s=>s.ex.every(e=>!e.tech));
   if(intro) wc.appendChild(mkT("div","mob-sec-w","Intro week: easier sets, nothing to failure."));
   W.sessions.forEach((s,i)=>{
-    wc.appendChild(mkT("div","fld-lbl prog-lbl",`${(picked.length===per?DAYS.filter(d=>picked.includes(d)):days)[i].slice(0,3)} · ${s.label}${s.focus?" ("+s.focus.toLowerCase()+")":""}`));
     const exs=s.ex.map(e=>progEx(e,swaps)).filter(Boolean);
     if(PROG.glutes&&/lower|leg/i.test(s.label)) exs.unshift(glutesFirst(intro,swaps));
+    const secs=420+exs.reduce((t,e)=>t+exSecs({ n:e.s, rl:e.rl, rh:e.rh, rest:e.rest, wu:rangeMid(e.wu), tech:e.tech }),0);
+    wc.appendChild(mkT("div","fld-lbl prog-lbl",`${(picked.length===per?DAYS.filter(d=>picked.includes(d)):days)[i].slice(0,3)} · ${s.label}${s.focus?" ("+s.focus.toLowerCase()+")":""} · about ${fmtMin(secs)}`));
     exs.forEach(e=>{
       const row=mk("div","mob-row"), left=mk("div","mob-left");
       left.appendChild(mkT("div","mob-name",e.name));
