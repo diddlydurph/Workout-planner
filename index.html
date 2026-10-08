@@ -135,6 +135,8 @@
   .rest-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #E8E6E1; }
   .rest-info { flex: 1; min-width: 0; }
   .rest-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .rest-sound { margin-top: 4px; background: #F0A50018; border: 1px solid #F0A50055; color: #F0A500; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .rest-sound[hidden] { display: none; }
   .rest-ex-name { font-size: 13px; font-weight: 600; color: #E8E6E1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rest-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
   .rest-skip { background: #C0392B22; border: 1px solid #C0392B55; color: #C0392B; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; white-space: nowrap; }
@@ -667,7 +669,7 @@ function setupDrag(handle, cardEl, ei) {
 const REST_KEY = 'restTimer';
 let restTimer = { tick: null, to: null, end: 0, total: 0, remaining: 0, exName: '', fired: true };
 const CIRC = 2 * Math.PI * 26; // circumference for r=26
-let audioCtx = null, cueBus = null, cueEndAt = 0, wakeLock = null;
+let audioCtx = null, cueBus = null, cueEndAt = 0, wakeLock = null, keepAlive = null;
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 function swPost(msg) {
@@ -687,24 +689,43 @@ function unlockAudio() {
 document.addEventListener('pointerdown', unlockAudio, { passive: true });
 
 // ── Countdown sounds, synthesised so no sound file is needed ──────────────────
-// 10s left: rising two-note chime · 3, 2, 1: short high bings · 0: double bell
-function tone(bus, t, f, dur, vol) {
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.type = 'sine'; o.frequency.value = f;
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
-}
-function bell(bus, t, f, vol) {
-  [[1, 1, 1.8], [2, 0.35, 1.0], [2.75, 0.18, 0.6], [4, 0.08, 0.35]].forEach(([m, a, d]) => tone(bus, t, f * m, d, a * vol));
+// Digital stopwatch-style beeps (like FitNotes): 10s left: beep-beep · 3, 2, 1: short beeps · 0: two long high beeps
+function beep(bus, t, f, dur, vol) {
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.005);
+  g.gain.setValueAtTime(vol, t + dur - 0.015);
+  g.gain.linearRampToValueAtTime(0, t + dur);
+  g.connect(bus);
+  // A few odd harmonics give it the bright, square-ish edge of a watch beep, which cuts through music
+  [[1, 1], [3, 1 / 3], [5, 1 / 5]].forEach(([m, a]) => {
+    const o = audioCtx.createOscillator(), h = audioCtx.createGain();
+    o.frequency.value = f * m; h.gain.value = a;
+    o.connect(h); h.connect(g); o.start(t); o.stop(t + dur + 0.02);
+  });
 }
 const SOUND = {
-  warn: (bus, t) => { tone(bus, t, 659, 0.45, 0.6); tone(bus, t, 1318, 0.25, 0.15); tone(bus, t + 0.22, 988, 0.7, 0.6); tone(bus, t + 0.22, 1976, 0.35, 0.15); },
-  bing: (bus, t) => { tone(bus, t, 1568, 0.22, 0.7); tone(bus, t, 3136, 0.12, 0.2); },
-  end:  (bus, t) => { bell(bus, t, 880, 0.5); bell(bus, t + 0.28, 1175, 0.4); },
+  warn: (bus, t) => { beep(bus, t, 880, 0.12, 0.5); beep(bus, t + 0.22, 880, 0.12, 0.5); },
+  bing: (bus, t) => beep(bus, t, 1046, 0.15, 0.55),
+  end:  (bus, t) => { beep(bus, t, 1568, 0.5, 0.55); beep(bus, t + 0.65, 1568, 0.5, 0.55); },
 };
 const CUES = [[10, 'warn'], [3, 'bing'], [2, 'bing'], [1, 'bing'], [0, 'end']];
+
+// Chrome switches the sound output off after ~30s of pure silence and takes a moment to switch it back on,
+// which swallowed the first beeps (worse on Bluetooth). A signal far below hearing keeps it awake while resting.
+function startKeepAlive() {
+  if (keepAlive || !audioCtx || audioCtx.state !== 'running' || !audioCtx.createConstantSource) return;
+  try {
+    const src = audioCtx.createConstantSource();
+    src.offset.value = 0.0001;
+    src.connect(audioCtx.destination); src.start();
+    keepAlive = src;
+  } catch {}
+}
+function stopKeepAlive() {
+  const k = keepAlive; keepAlive = null;
+  try { if (k) { k.stop(); k.disconnect(); } } catch {}
+}
 
 function cancelCues() {
   if (cueBus) { try { cueBus.disconnect(); } catch {} }
@@ -714,6 +735,7 @@ function cancelCues() {
 function scheduleCues() {
   cancelCues();
   if (restTimer.fired || !audioCtx || audioCtx.state !== 'running') return;
+  startKeepAlive();
   const now = audioCtx.currentTime, left = (restTimer.end - Date.now()) / 1000;
   cueBus = audioCtx.createGain(); cueBus.connect(audioCtx.destination);
   CUES.forEach(([s, kind]) => {
@@ -783,10 +805,12 @@ function restTickFn() {
   const ms = restTimer.end - Date.now();
   restTimer.remaining = Math.max(0, Math.ceil(ms / 1000));
   updateRestUI();
+  // If the phone paused our audio mid-rest, ask for it back (the countdown is rebooked once it's running)
+  if (ms > 0 && audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
   // Buzz with the sounds: a nudge at 10s, a tick at 3, 2, 1
   const r = restTimer.remaining;
   if (r !== restTimer.lastR && !restTimer.fired && ms > 0) {
-    if (restTimer.lastR != null && r === 10 && restTimer.total >= 15) buzz(150);
+    if (restTimer.lastR != null && r === 10 && restTimer.total >= 15) buzz([100, 100, 100]);
     if (r >= 1 && r <= 3) buzz(60);
     restTimer.lastR = r;
   }
@@ -798,9 +822,10 @@ function restTickFn() {
     if (!document.hidden && -ms < 5000) {
       const booked = cueEndAt > 0 && audioCtx && audioCtx.state === 'running' && audioCtx.currentTime + 0.3 >= cueEndAt;
       if (!booked) { cancelCues(); ringLate(); }
-      buzz([300, 100, 300]);
+      buzz([600, 200, 600, 200, 600]);
     } else cancelCues(); // back long after the end: don't play a stale countdown
     setTimeout(closeRestOverlay, 1500);
+    setTimeout(() => { if (restTimer.fired) stopKeepAlive(); }, 2500); // let the end beeps finish first
   }
 }
 
@@ -822,12 +847,15 @@ function updateRestUI() {
   arc.style.strokeDashoffset = CIRC * (1 - pct);
   // Colour shifts red as time runs out
   arc.style.stroke = restTimer.remaining <= 10 ? '#C0392B' : restTimer.remaining <= 20 ? '#F0A500' : '#4A9EBF';
+  // Say so when sound can't play (e.g. the browser reloaded the app): one tap brings it back
+  const sd = document.getElementById('rest-sound');
+  if (sd) sd.hidden = !!(audioCtx && audioCtx.state === 'running');
 }
 
 function restSkip() {
   clearRestTimers();
   restTimer.fired = true;
-  cancelCues(); releaseScreen();
+  cancelCues(); stopKeepAlive(); releaseScreen();
   try { localStorage.removeItem(REST_KEY); } catch {}
   swPost({ type: 'cancel' });
   closeRestOverlay();
@@ -1440,6 +1468,7 @@ render();
   <div class="rest-info">
     <div class="rest-label">Rest — <input id="rest-dur-inp" class="rest-inp" type="number" placeholder="90"> sec</div>
     <div class="rest-ex-name" id="rest-ex-label">—</div>
+    <button class="rest-sound" id="rest-sound" hidden onclick="unlockAudio()">🔇 Sound off · tap to turn on</button>
   </div>
   <div class="rest-actions">
     <button class="rest-add" onclick="restAdd30()">+30s</button>
