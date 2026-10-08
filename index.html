@@ -21,7 +21,7 @@
   .header { flex-wrap: wrap; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: #18181C; border-bottom: 1px solid #2A2A30; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
   .header-sub { font-size: 11px; letter-spacing: 3px; color: #888; text-transform: uppercase; margin-bottom: 2px; }
   .header-week { font-size: 17px; font-weight: 700; }
-  .header-btns { display: flex; gap: 6px; }
+  .header-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .tab-btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; }
   .tab-active { background: #E8E6E1; color: #0F0F12; }
   .tab-inactive { background: #2A2A30; color: #888; }
@@ -170,12 +170,52 @@
   .mob-note { font-size: 12px; color: #888; margin-top: 2px; }
   .mob-dose { font-size: 13px; color: #C8C6C0; white-space: nowrap; text-align: right; }
   .copy-btn { width: 100%; margin-top: 10px; padding: 12px; border-radius: 10px; background: #1E1E24; border: 1px solid #2A2A30; color: #C8C6C0; font-size: 13px; font-weight: 600; }
+
+  /* Setup, people, plan and food */
+  .header-who { background: none; border: none; padding: 0; text-align: left; display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 8px 12px; border-radius: 8px; border: 1px solid #2A2A30; background: #18181C; color: #C8C6C0; font-size: 13px; font-weight: 600; }
+  .chip-on { background: #E8E6E1; color: #0F0F12; border-color: #E8E6E1; }
+  .q { margin-bottom: 18px; }
+  .q-t { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .q-h { font-size: 12px; color: #888; margin-bottom: 8px; line-height: 1.4; }
+  .primary-btn { width: 100%; padding: 14px; border-radius: 10px; border: none; background: #27AE60; color: #0F0F12; font-size: 15px; font-weight: 700; margin: 6px 0 8px; }
+  .primary-btn:disabled { opacity: 0.4; }
+  .link-btn { background: none; border: none; color: #4A9EBF; font-size: 13px; padding: 10px 0; display: block; }
+  .row-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .plan-day-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .plan-day-top .chip { padding: 5px 10px; font-size: 12px; }
+  .plan-label { font-size: 14px; padding: 8px 10px; margin-bottom: 4px; }
+  .plan-ex { border-top: 1px solid #2A2A30; padding-top: 10px; margin-top: 10px; }
+  .plan-ex .ex-config-row { margin-bottom: 6px; }
+  .plan-ex .range-inp, .plan-ex .rpe-target-inp { width: 40px; }
+  .plan-ex .swap-btn:disabled { opacity: 0.25; }
+  .plan-setup-btn { margin-top: 10px; }
+  .warm { background: #18181C; border: 1px solid #2A2A30; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .warm-sum { font-size: 13px; font-weight: 700; color: #C8C6C0; cursor: pointer; }
+  .warm[open] .warm-sum { margin-bottom: 6px; }
+  .rest-day { font-size: 14px; color: #C8C6C0; margin-bottom: 16px; line-height: 1.5; }
+  .food-p { font-size: 13px; color: #C8C6C0; line-height: 1.5; margin: 6px 0; }
+  .fld-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
+  .unit-inp { display: flex; gap: 6px; }
+  .unit-cell { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .unit-cell .fld-inp { min-width: 0; padding: 9px 8px; }
+  .unit-lbl { font-size: 12px; color: #888; }
+  .act-opt { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
+  .act-d { font-size: 11px; font-weight: 400; color: #888; margin-top: 2px; }
+  .chip-on .act-d { color: #555; }
+  .big-kcal { font-size: 32px; font-weight: 800; margin: 2px 0; }
+  .macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 6px; }
+  .macro { background: #0F0F12; border: 1px solid #2A2A30; border-radius: 8px; padding: 10px 6px; text-align: center; }
+  .macro-l { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .macro-v { font-size: 18px; font-weight: 700; margin: 2px 0; }
+  .macro-k { font-size: 11px; color: #666; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-const PLAN = {
+let PLAN = {
   Monday:    { type:"run", label:"Rest (office)",       color:"#4A9EBF", icon:"😴", muscles:"Morning mobility · Evening routine" },
   Tuesday:   { type:"gym", label:"Pull",                color:"#C0392B", icon:"💪", muscles:"Mid-back · Traps · Rear delts · Biceps · Intervals at lunch" },
   Wednesday: { type:"gym", label:"Push",                color:"#C0392B", icon:"💪", muscles:"Chest · Delts · Triceps" },
@@ -184,6 +224,9 @@ const PLAN = {
   Saturday:  { type:"gym", label:"Upper",               color:"#C0392B", icon:"💪", muscles:"After parkrun · Back · Chest · Delts · Arms" },
   Sunday:    { type:"gym", label:"Functional Lower",    color:"#7D3C98", icon:"🦵", muscles:"Glutes · Hams · Carries · Core · Slow run later" },
 };
+
+// Gyms: weights and kit differ, so history and hints are kept per gym
+let GYMS = ["Pure Gym","Tathams"];
 
 const HOME = [
   { name:"Home: Dead Bug (/side)",      rl:8,  rh:10, rpe:7, s:3, wj:0,   rest:45,  alts:["Band-Resisted Dead Bug","Bird Dog"] },
@@ -194,7 +237,7 @@ const HOME = [
   { name:"Home: Band Reverse Curl",     rl:15, rh:20, rpe:9, s:2, wj:0,   rest:45,  alts:["KB Reverse Curl","Reverse Wrist Curl"] },
 ];
 
-const DEFS = {
+let DEFS = {
   Tuesday: [
     { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["15° Lying DB Row (elbows wide)","CS T-Bar Row","1-Arm DB Row (bench)"] },
     { name:"Neutral Lat Pulldown",        rl:8,  rh:10, rpe:8, s:2, wj:6.8, rest:120, alts:["Single-Arm Cable Pulldown","Machine Lat Pulldown"] },
@@ -245,7 +288,7 @@ const DEFS = {
 
 // Targets for alternatives that aren't a main exercise on any day.
 // Alternatives that are a main exercise elsewhere (e.g. Face Pull) use that day's targets.
-const ALTS = {
+let ALTS = {
   // Glutes
   "Machine Hip Thrust":         { rl:8,  rh:10, rpe:8, wj:5,   rest:120 },
   "Smith Hip Thrust":           { rl:8,  rh:10, rpe:8, wj:5,   rest:120 },
@@ -317,6 +360,7 @@ function exTargets(name, day) {
 // Setup note for an exercise (seat, handles, bench position) from whichever day's plan has it
 function exNote(name) {
   for(const d of DAYS){ const m=(DEFS[d]||[]).find(x=>x.name===name&&x.note); if(m) return m.note; }
+  if(MYPLAN&&LIBMAP[name]) return LIBMAP[name].note||"";
   return "";
 }
 
@@ -417,9 +461,284 @@ function renderMobility(app){
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-function sGet(k) { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch{return null;} }
-function sSet(k,v) { try { localStorage.setItem(k,JSON.stringify(v)); } catch{} }
-function sList(prefix) { const r=[]; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(prefix))r.push(k);} return r; }
+// ── Storage: each person on this phone gets their own space ──────────────────
+// The original plan's data has no prefix (it was here first); people added later are kept under "u:<id>:".
+let PFX = "";
+function sGet(k) { try { const v=localStorage.getItem(PFX+k); return v?JSON.parse(v):null; } catch{return null;} }
+function sSet(k,v) { try { localStorage.setItem(PFX+k,JSON.stringify(v)); } catch{} }
+function sDel(k) { try { localStorage.removeItem(PFX+k); } catch{} }
+function sList(prefix) { const r=[], p=PFX+prefix; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(p))r.push(k.slice(PFX.length));} return r; }
+// Phone-wide settings, the same whoever is using it
+function gGet(k) { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch{return null;} }
+function gSet(k,v) { try { localStorage.setItem(k,JSON.stringify(v)); } catch{} }
+
+// ── Exercise library for personal plans ───────────────────────────────────────
+// slot: the job an exercise does in a session · eq: least kit needed (home < db < gym)
+// c: compound (heavier, longer rest) · av: areas it loads, for "go easy on" · r: fixed rep range (seconds, steps, bodyweight)
+const SLOT = {
+  squat:    { fam:"lower", lbl:"Quads" },      hinge:    { fam:"lower", lbl:"Hamstrings" },
+  glute:    { fam:"lower", lbl:"Glutes" },     lunge:    { fam:"lower", lbl:"Quads" },
+  quadIso:  { fam:"lower", lbl:"Quads" },      hamIso:   { fam:"lower", lbl:"Hamstrings" },
+  gluteIso: { fam:"lower", lbl:"Glutes" },     calves:   { fam:"lower", lbl:"Calves" },
+  hPush:    { fam:"push",  lbl:"Chest" },      incPush:  { fam:"push",  lbl:"Chest" },
+  chestIso: { fam:"push",  lbl:"Chest" },      vPush:    { fam:"push",  lbl:"Shoulders" },
+  sideDelt: { fam:"push",  lbl:"Shoulders" },  triceps:  { fam:"push",  lbl:"Triceps" },
+  vPull:    { fam:"pull",  lbl:"Back" },       hPull:    { fam:"pull",  lbl:"Back" },
+  rearDelt: { fam:"pull",  lbl:"Rear delts" }, biceps:   { fam:"pull",  lbl:"Biceps" },
+  core:     { fam:"core",  lbl:"Core" },
+};
+const LIB = [
+  // Quads
+  { n:"Back Squat", slot:"squat", eq:"gym", c:1, av:["knee","back"], wj:2.5, note:"Brace before each rep · knees track over the toes · go as deep as you can control" },
+  { n:"Leg Press", slot:"squat", eq:"gym", c:1, av:["knee"], wj:5, note:"Lower back stays flat on the pad · stop just short of lockout" },
+  { n:"Hack Squat", slot:"squat", eq:"gym", c:1, av:["knee"], wj:5 },
+  { n:"Smith Squat", slot:"squat", eq:"gym", c:1, av:["knee"], wj:2.5 },
+  { n:"Goblet Squat", slot:"squat", eq:"db", c:1, av:["knee"], wj:2, note:"Hold the dumbbell at your chest · sit between your heels" },
+  { n:"Bodyweight Squat", slot:"squat", eq:"home", c:1, av:["knee"], wj:0, r:[15,25], note:"Take 3 seconds on the way down" },
+  { n:"DB Split Squat (/side)", slot:"lunge", eq:"db", c:1, av:["knee"], wj:2, note:"Longer stride and a slight forward lean for more glutes · drive through the front heel" },
+  { n:"Bulgarian Split Squat (/side)", slot:"lunge", eq:"db", c:1, av:["knee"], wj:2, note:"Back foot on a bench · front foot far enough out that the knee stays over the foot" },
+  { n:"DB Step-Up (/side)", slot:"lunge", eq:"db", c:1, av:["knee"], wj:2, note:"Drive through the front heel · don't push off the back foot" },
+  { n:"Reverse Lunge (/side)", slot:"lunge", eq:"home", c:1, av:["knee"], wj:2, note:"Step back, lower under control, push up through the front heel" },
+  { n:"Leg Extension", slot:"quadIso", eq:"gym", c:0, av:["knee"], wj:5 },
+  { n:"Wall Sit (sec)", slot:"quadIso", eq:"home", c:0, av:["knee"], wj:0, r:[30,60] },
+  // Hamstrings
+  { n:"Romanian Deadlift", slot:"hinge", eq:"gym", c:1, av:["back"], wj:2.5, note:"Soft knees, push the hips back, bar close to the legs · stop when the hamstrings are tight" },
+  { n:"DB Romanian Deadlift", slot:"hinge", eq:"db", c:1, av:["back"], wj:2, note:"Soft knees, push the hips back · dumbbells close to the legs" },
+  { n:"Trap Bar Deadlift", slot:"hinge", eq:"gym", c:1, av:["back"], wj:5 },
+  { n:"45° Back Extension", slot:"hinge", eq:"gym", c:1, av:[], wj:2, note:"Round slightly over the pad and squeeze the glutes to come up" },
+  { n:"Single-Leg RDL (/side)", slot:"hinge", eq:"home", c:1, av:[], wj:2, note:"Hips level, reach the free leg back · hold a dumbbell if you have one" },
+  { n:"Seated Leg Curl", slot:"hamIso", eq:"gym", c:0, av:[], wj:5 },
+  { n:"Lying Leg Curl", slot:"hamIso", eq:"gym", c:0, av:[], wj:5 },
+  { n:"Slider Leg Curl", slot:"hamIso", eq:"home", c:0, av:[], wj:0, r:[8,15], note:"Heels on sliders or a towel on a smooth floor · hips stay up" },
+  // Glutes
+  { n:"Hip Thrust", slot:"glute", eq:"gym", c:1, av:[], wj:5, note:"Upper back on the bench edge, chin tucked, ribs down · shins vertical at the top · squeeze 1s" },
+  { n:"Machine Hip Thrust", slot:"glute", eq:"gym", c:1, av:[], wj:5 },
+  { n:"Smith Hip Thrust", slot:"glute", eq:"gym", c:1, av:[], wj:5 },
+  { n:"DB Hip Thrust", slot:"glute", eq:"db", c:1, av:[], wj:2, note:"Dumbbell on the hips · shins vertical at the top · squeeze 1s" },
+  { n:"Glute Bridge", slot:"glute", eq:"home", c:1, av:[], wj:0, r:[12,20], note:"Squeeze 2s at the top · ribs down, don't arch" },
+  { n:"Single-Leg Glute Bridge (/side)", slot:"glute", eq:"home", c:1, av:[], wj:0, r:[10,15], note:"Hips stay level · squeeze 2s at the top" },
+  { n:"Hip Abduction", slot:"gluteIso", eq:"gym", c:0, av:[], wj:5, note:"Lean slightly forward to bias the glutes · pause 1s at the widest point" },
+  { n:"Cable Kickback (/side)", slot:"gluteIso", eq:"gym", c:0, av:[], wj:2.5 },
+  { n:"Banded Clamshell (/side)", slot:"gluteIso", eq:"home", c:0, av:[], wj:0, r:[12,20], note:"Hips stacked, don't roll back" },
+  { n:"Mini-Band Lateral Walk (/side)", slot:"gluteIso", eq:"home", c:0, av:[], wj:0, r:[10,15], note:"Band above the knees, small steps, toes forward" },
+  // Calves
+  { n:"Standing Calf Raise", slot:"calves", eq:"gym", c:0, av:[], wj:5, note:"Full stretch at the bottom, pause 1s at the top" },
+  { n:"Seated Calf Raise", slot:"calves", eq:"gym", c:0, av:[], wj:5 },
+  { n:"Single-Leg Calf Raise (/side)", slot:"calves", eq:"home", c:0, av:[], wj:2, r:[10,15], note:"On a step · hold a dumbbell when bodyweight gets easy" },
+  // Chest
+  { n:"Barbell Bench Press", slot:"hPush", eq:"gym", c:1, av:["shoulder"], wj:2.5, note:"Shoulder blades back and down · bar to the lower chest · feet planted" },
+  { n:"Machine Chest Press", slot:"hPush", eq:"gym", c:1, av:[], wj:5, note:"Handles level with mid-chest · press without shrugging" },
+  { n:"DB Bench Press", slot:"hPush", eq:"db", c:1, av:["shoulder"], wj:2, note:"Shoulder blades back · elbows about 45° from the body" },
+  { n:"DB Floor Press", slot:"hPush", eq:"db", c:1, av:[], wj:2, note:"Lying on the floor · pause when the elbows touch down" },
+  { n:"Push-Up", slot:"hPush", eq:"home", c:1, av:["wrist"], wj:0, r:[8,20], note:"Body in one line · hands just outside the shoulders" },
+  { n:"Incline DB Press", slot:"incPush", eq:"db", c:1, av:["shoulder"], wj:2, note:"Bench at 15–30° · elbows about 45° from the body" },
+  { n:"Incline Machine Press", slot:"incPush", eq:"gym", c:1, av:[], wj:5 },
+  { n:"Low-Incline Smith Press", slot:"incPush", eq:"gym", c:1, av:["shoulder"], wj:2.5 },
+  { n:"Feet-Elevated Push-Up", slot:"incPush", eq:"home", c:1, av:["wrist"], wj:0, r:[6,15] },
+  { n:"Cable Fly", slot:"chestIso", eq:"gym", c:0, av:["shoulder"], wj:2.5, note:"Slight bend in the elbows · stop short of a deep stretch" },
+  { n:"Pec Deck", slot:"chestIso", eq:"gym", c:0, av:[], wj:5, note:"Stop short of a deep stretch" },
+  { n:"DB Fly", slot:"chestIso", eq:"db", c:0, av:["shoulder"], wj:1 },
+  { n:"Band Chest Fly", slot:"chestIso", eq:"home", c:0, av:[], wj:0, r:[12,20] },
+  // Shoulders
+  { n:"Seated DB Shoulder Press", slot:"vPush", eq:"db", c:1, av:["shoulder"], wj:2 },
+  { n:"Machine Shoulder Press", slot:"vPush", eq:"gym", c:1, av:["shoulder"], wj:5 },
+  { n:"Landmine Press (/side)", slot:"vPush", eq:"gym", c:1, av:[], wj:2.5, note:"Press up and slightly forward · easier on the shoulders than straight overhead" },
+  { n:"Pike Push-Up", slot:"vPush", eq:"home", c:1, av:["shoulder","wrist"], wj:0, r:[6,12] },
+  { n:"DB Lateral Raise", slot:"sideDelt", eq:"db", c:0, av:[], wj:1, note:"Lead with the elbows · stop at shoulder height" },
+  { n:"Cable Lateral Raise", slot:"sideDelt", eq:"gym", c:0, av:[], wj:2.5, note:"Lead with the elbow · stop at shoulder height" },
+  { n:"Machine Lateral Raise", slot:"sideDelt", eq:"gym", c:0, av:[], wj:5 },
+  { n:"Band Lateral Raise", slot:"sideDelt", eq:"home", c:0, av:[], wj:0, r:[12,20] },
+  { n:"Face Pull", slot:"rearDelt", eq:"gym", c:0, av:[], wj:2.5, note:"Pull to the forehead, elbows high · squeeze the shoulder blades" },
+  { n:"Reverse Pec Deck", slot:"rearDelt", eq:"gym", c:0, av:[], wj:5 },
+  { n:"Rear Delt DB Fly", slot:"rearDelt", eq:"db", c:0, av:[], wj:1 },
+  { n:"Band Pull-Apart", slot:"rearDelt", eq:"home", c:0, av:[], wj:0, r:[15,25] },
+  // Back
+  { n:"Lat Pulldown", slot:"vPull", eq:"gym", c:1, av:[], wj:5, note:"Pull the elbows down to your sides · chest up, no swinging" },
+  { n:"Pull-Up", slot:"vPull", eq:"gym", c:1, av:["shoulder"], wj:0, r:[4,10], note:"Use a band or the assisted machine until you get 5 clean reps" },
+  { n:"Single-Arm Cable Pulldown (/side)", slot:"vPull", eq:"gym", c:1, av:[], wj:2.5 },
+  { n:"DB Pullover", slot:"vPull", eq:"db", c:0, av:["shoulder"], wj:2 },
+  { n:"Band Pulldown", slot:"vPull", eq:"home", c:1, av:[], wj:0, r:[12,20], note:"Band anchored high · pull the elbows down to your sides" },
+  { n:"Chest-Supported DB Row", slot:"hPull", eq:"db", c:1, av:[], wj:2, note:"Chest on an incline bench · pull the elbows back past the body" },
+  { n:"Seated Cable Row", slot:"hPull", eq:"gym", c:1, av:[], wj:5, note:"Sit tall · pull to the lower ribs, don't rock" },
+  { n:"Machine Row", slot:"hPull", eq:"gym", c:1, av:[], wj:5 },
+  { n:"1-Arm DB Row (/side)", slot:"hPull", eq:"db", c:1, av:[], wj:2, note:"Hand and knee on a bench · pull the elbow towards the hip" },
+  { n:"Barbell Row", slot:"hPull", eq:"gym", c:1, av:["back"], wj:2.5 },
+  { n:"Band Row", slot:"hPull", eq:"home", c:1, av:[], wj:0, r:[12,20] },
+  // Arms
+  { n:"DB Curl", slot:"biceps", eq:"db", c:0, av:[], wj:1, note:"Elbows stay by your sides" },
+  { n:"Cable Curl", slot:"biceps", eq:"gym", c:0, av:[], wj:2.5 },
+  { n:"Hammer Curl", slot:"biceps", eq:"db", c:0, av:[], wj:1 },
+  { n:"Machine Preacher Curl", slot:"biceps", eq:"gym", c:0, av:[], wj:5 },
+  { n:"EZ Bar Curl", slot:"biceps", eq:"gym", c:0, av:["wrist"], wj:2.5 },
+  { n:"Band Curl", slot:"biceps", eq:"home", c:0, av:[], wj:0, r:[12,20] },
+  { n:"Rope Pushdown", slot:"triceps", eq:"gym", c:0, av:[], wj:2.5, note:"Elbows pinned to your sides · spread the rope at the bottom" },
+  { n:"Overhead Cable Extension", slot:"triceps", eq:"gym", c:0, av:["shoulder"], wj:2.5 },
+  { n:"DB Overhead Extension", slot:"triceps", eq:"db", c:0, av:["shoulder"], wj:1 },
+  { n:"Bar Pushdown", slot:"triceps", eq:"gym", c:0, av:[], wj:2.5 },
+  { n:"DB Skull Crusher", slot:"triceps", eq:"db", c:0, av:["wrist"], wj:1 },
+  { n:"Close-Grip Push-Up", slot:"triceps", eq:"home", c:0, av:["wrist"], wj:0, r:[8,15] },
+  { n:"Band Pushdown", slot:"triceps", eq:"home", c:0, av:[], wj:0, r:[12,20] },
+  // Core
+  { n:"Cable Crunch", slot:"core", eq:"gym", c:0, av:["back"], wj:2.5 },
+  { n:"Dead Bug (/side)", slot:"core", eq:"home", c:0, av:[], wj:0, r:[8,10], note:"Lower back stays pressed into the floor" },
+  { n:"Hanging Knee Raise", slot:"core", eq:"gym", c:0, av:["shoulder"], wj:0, r:[8,15] },
+  { n:"Cable Pallof (/side)", slot:"core", eq:"gym", c:0, av:[], wj:2.5, note:"Press out and hold 2s without letting the cable twist you" },
+  { n:"Plank (sec)", slot:"core", eq:"home", c:0, av:[], wj:0, r:[30,60] },
+  { n:"Side Plank (sec/side)", slot:"core", eq:"home", c:0, av:[], wj:0, r:[20,45] },
+  { n:"Reverse Crunch", slot:"core", eq:"home", c:0, av:[], wj:0, r:[10,15] },
+];
+const LIBMAP = Object.fromEntries(LIB.map(e=>[e.n,e]));
+const EQ_RANK = { home:0, db:1, gym:2 };
+const AREA = { knee:"knees", back:"lower back", shoulder:"shoulders", wrist:"wrists and elbows" };
+// Muscles people can prioritise, and the slots that train them (first = the main lift)
+const PRI = {
+  glutes:["glute","gluteIso","lunge"], quads:["squat","lunge","quadIso"], hams:["hinge","hamIso"],
+  chest:["hPush","incPush","chestIso"], back:["hPull","vPull"], shoulders:["sideDelt","vPush","rearDelt"],
+  arms:["biceps","triceps"], core:["core"], calves:["calves"],
+};
+const PRI_LBL = { glutes:"Glutes", quads:"Quads", hams:"Hamstrings", chest:"Chest", back:"Back", shoulders:"Shoulders", arms:"Arms", core:"Core", calves:"Calves" };
+// Session types: the families of slot they take, and their slots in order of importance
+const SESS = {
+  fullA: { lbl:"Full Body", fam:["lower","push","pull","core"], slots:["squat","hPush","hPull","hinge","sideDelt","biceps","core"] },
+  fullB: { lbl:"Full Body", fam:["lower","push","pull","core"], slots:["hinge","vPull","incPush","lunge","rearDelt","triceps","calves"] },
+  fullC: { lbl:"Full Body", fam:["lower","push","pull","core"], slots:["glute","vPush","hPull","quadIso","chestIso","hamIso","core"] },
+  upperA:{ lbl:"Upper", fam:["push","pull"], slots:["hPush","hPull","vPush","vPull","sideDelt","triceps","biceps"] },
+  upperB:{ lbl:"Upper", fam:["push","pull"], slots:["vPull","incPush","hPull","chestIso","sideDelt","rearDelt","biceps","triceps"] },
+  lowerA:{ lbl:"Lower", fam:["lower","core"], slots:["squat","hinge","lunge","hamIso","quadIso","calves","core"] },
+  lowerB:{ lbl:"Lower", fam:["lower","core"], slots:["hinge","glute","lunge","hamIso","gluteIso","calves","core"] },
+  push:  { lbl:"Push", fam:["push"], slots:["hPush","incPush","vPush","sideDelt","chestIso","triceps","triceps"] },
+  pull:  { lbl:"Pull", fam:["pull"], slots:["vPull","hPull","hPull","rearDelt","biceps","biceps"] },
+  legs:  { lbl:"Legs", fam:["lower","core"], slots:["squat","hinge","glute","quadIso","hamIso","calves","core"] },
+};
+const SPLITS = { 1:["fullA"], 2:["fullA","fullB"], 3:["fullA","fullB","fullC"], 4:["upperA","lowerA","upperB","lowerB"],
+  5:["upperA","lowerA","push","pull","legs"], 6:["push","pull","legs","push","pull","legs"] };
+// Rep ranges by goal: [low, high, RPE, rest seconds] for compounds (c) and isolation (i)
+const SCHEME = {
+  muscle:   { c:[6,10,8,150], i:[10,15,9,75] },
+  strength: { c:[4,6,8,180],  i:[8,12,8,90] },
+  fatloss:  { c:[6,10,8,120], i:[10,15,9,60] },
+  fitness:  { c:[8,12,7,90],  i:[12,15,8,60] },
+};
+const PER_SESSION = { 45:4, 60:5, 75:6, 90:7 };
+
+function libTargets(e, me) {
+  const sc=SCHEME[me&&me.goal]||SCHEME.muscle, [rl,rh,rpe,rest]=e.c?sc.c:sc.i;
+  const t={ rl, rh, rpe:me&&me.exp==="new"?Math.max(6,rpe-1):rpe, wj:e.wj, rest };
+  if(e.r){ t.rl=e.r[0]; t.rh=e.r[1]; }
+  return t;
+}
+function eqOK(e, eq) { return EQ_RANK[e.eq]<=EQ_RANK[eq||"gym"]; }
+function flagged(e, me) { return e.av.filter(a=>(me.avoid||[]).includes(a)); }
+
+// Pick the exercise for a slot: kit you have, nothing that loads an area you're nursing if there's another option,
+// and a different one from earlier in the week where possible
+function pickExercise(slot, me, used, taken) {
+  const c=LIB.filter(e=>e.slot===slot&&eqOK(e,me.eq)&&!taken.has(e.n));
+  // Bodyweight and band moves only when there's nothing better for your kit, even if it means repeating a lift
+  const score=e=>(flagged(e,me).length?100:0)+(e.eq==="home"&&me.eq!=="home"?25:0)+(used[e.n]||0)*10+LIB.indexOf(e)*0.01;
+  c.sort((a,b)=>score(a)-score(b));
+  if(!c.length) return null;
+  const pick=c[0], others=c.slice(1).sort((a,b)=>(flagged(a,me).length-flagged(b,me).length)||LIB.indexOf(a)-LIB.indexOf(b));
+  return { pick, alts:others.slice(0,3).map(e=>e.n) };
+}
+
+function buildSession(kind, me, n, used) {
+  const T=SESS[kind];
+  const slots=T.slots.slice(), keep=new Set(), main=new Set();
+  let front=0;
+  (me.pri||[]).forEach(m=>{
+    const opts=(PRI[m]||[]).filter(s=>T.fam.includes(SLOT[s].fam));
+    if(!opts.length) return;
+    main.add(opts[0]); keep.add(opts[0]);
+    // Core and calves stay at the end, so they don't tire you out before the big lifts
+    if(m==="core"||m==="calves"){ if(!slots.includes(opts[0])) slots.push(opts[0]); return; }
+    // The main lift for a priority goes first in the session
+    const i=slots.indexOf(opts[0]); if(i>=0) slots.splice(i,1);
+    slots.splice(front++,0,opts[0]);
+    // ...and a second exercise for it stays in, a little later
+    if(opts[1]){
+      if(!slots.includes(opts[1])) slots.splice(Math.min(slots.length,front+2),0,opts[1]);
+      keep.add(opts[1]);
+    }
+  });
+  // Trim to the session length, dropping the least important slots that aren't priorities
+  const cap=Math.max(n,Math.min(n+1,slots.filter(s=>keep.has(s)).length));
+  while(slots.length>cap){
+    let j=slots.length-1; while(j>=0&&keep.has(slots[j])) j--;
+    if(j<0) break; slots.splice(j,1);
+  }
+  const taken=new Set(), exercises=[], lbls=[];
+  slots.forEach(s=>{
+    const r=pickExercise(s,me,used,taken); if(!r) return;
+    const e=r.pick, t=libTargets(e,me), pri=main.has(s);
+    taken.add(e.n); used[e.n]=(used[e.n]||0)+1;
+    const sets=Math.min(4,(me.exp==="new"&&!e.c?2:3)+(pri?1:0));
+    const fl=flagged(e,me), note=[fl.length?`Go easy on your ${fl.map(a=>AREA[a]).join(" and ")}: pain-free range only`:"",e.note||""].filter(Boolean).join(" · ");
+    exercises.push({ name:e.n, ...t, s:sets, alts:r.alts, note });
+    if(!lbls.includes(SLOT[s].lbl)) lbls.push(SLOT[s].lbl);
+  });
+  const lower=T.fam.length===2&&T.fam[0]==="lower";
+  return { type:"gym", kind, label:T.lbl, icon:lower?"🦵":"💪", muscles:lbls.join(" · "), exercises };
+}
+
+function buildPlan(me) {
+  const gymDays=DAYS.filter(d=>(me.days||[]).includes(d)).slice(0,6);
+  const kinds=SPLITS[gymDays.length]||SPLITS[3], n=PER_SESSION[me.len]||5, used={};
+  const days={};
+  gymDays.forEach((d,i)=>{ days[d]=buildSession(kinds[i],me,n,used); });
+  // Two of the same session in a week become A and B
+  const base=Object.fromEntries(gymDays.map(d=>[d,days[d].label]));
+  gymDays.forEach(d=>{
+    const same=gymDays.filter(x=>base[x]===base[d]);
+    if(same.length>1) days[d].label=base[d]+" "+"ABC"[same.indexOf(d)];
+  });
+  // Runs go on the free days, spread through the week
+  const free=DAYS.filter(d=>!gymDays.includes(d));
+  const nRuns=Math.min(free.length,{ none:0, some:2, lots:3 }[me.run]||0);
+  const runDays=[]; for(let i=0;i<nRuns;i++) runDays.push(free[Math.floor((i+0.5)*free.length/nRuns)]);
+  const RUNS_L=[["Easy run","Conversational pace"],["Run","Steady, or intervals if you fancy it"],["Long easy run","Easy pace, a bit longer"]];
+  runDays.forEach((d,i)=>{ days[d]={ type:"run", label:RUNS_L[i][0], icon:"🏃", muscles:RUNS_L[i][1] }; });
+  free.filter(d=>!runDays.includes(d)).forEach(d=>{ days[d]={ type:"rest", label:"Rest", icon:"😴", muscles:"Walk, stretch, recover" }; });
+  const gyms=(me.gyms||"").split(",").map(g=>g.trim()).filter(Boolean).slice(0,3);
+  return { v:1, built:new Date().toISOString(), gyms:gyms.length?gyms:["My gym"], days };
+}
+
+// Muscles line for a gym day, from what's in it
+function dayMuscles(exs) {
+  const l=[]; (exs||[]).forEach(e=>{ const x=LIBMAP[e.name]; const m=x&&SLOT[x.slot].lbl; if(m&&!l.includes(m)) l.push(m); });
+  return l.join(" · ");
+}
+
+// Turn a personal plan into the tables the rest of the app reads
+let MYPLAN = null, MYSETUP = null;
+function applyPlan(pl) {
+  MYPLAN=pl;
+  PLAN={}; DEFS={};
+  DAYS.forEach(d=>{
+    const x=pl.days[d]||{ type:"rest", label:"Rest", icon:"😴", muscles:"" };
+    PLAN[d]={ type:x.type, label:x.label||"Workout", icon:x.icon||(x.type==="run"?"🏃":x.type==="rest"?"😴":"💪"),
+      color:x.type==="gym"?"#C0392B":x.type==="run"?"#4A9EBF":"#555", muscles:x.muscles||"" };
+    if(x.type==="gym") DEFS[d]=(x.exercises||[]).map(e=>({ ...e, alts:e.alts||[] }));
+  });
+  GYMS=pl.gyms&&pl.gyms.length?pl.gyms:["My gym"];
+  ALTS={}; LIB.forEach(e=>{ ALTS[e.n]=libTargets(e,MYSETUP); });
+}
+
+// ── Who's using the app on this phone ────────────────────────────────────────
+let PROFILES=gGet("profiles");
+if(!PROFILES||!Array.isArray(PROFILES.list)){
+  // Data from before people were added belongs to the original plan
+  const had=["lastGym","setupNotes","runsData","lastBackup"].some(k=>localStorage.getItem(k)!==null)||sList("logs:").length>0;
+  PROFILES=had?{ active:"me", list:[{ id:"me", name:"", classic:true }] }:{ active:null, list:[] };
+  if(had) gSet("profiles",PROFILES);
+}
+let ME=PROFILES.list.find(p=>p.id===PROFILES.active)||null;
+const CLASSIC=!!(ME&&ME.classic);
+if(ME&&!ME.classic){
+  PFX=`u:${ME.id}:`;
+  MYSETUP=sGet("me"); const pl=sGet("plan");
+  if(pl&&pl.days) applyPlan(pl); else ME=null; // no plan yet: back to setup
+}
 
 function todayName() { return DAYS[new Date().getDay()===0?6:new Date().getDay()-1]; }
 function weekKey(offset=0) {
@@ -457,7 +776,8 @@ function defaultLog(day) {
 
 const WK=weekKey(0);
 let S = {
-  view:"log", day:todayName(),
+  // No one set up yet: start with the setup questions. Just built a plan: show it.
+  view:!ME?"setup":sGet("justBuilt")?"plan":"log", day:todayName(),
   logs:sGet(`logs:${WK}`)||{},
   histWeeks:sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse(),
   swapIdx:null, histSel:null, histLog:null, saved:false,
@@ -468,12 +788,13 @@ let S = {
 function getLog() {
   const p=PLAN[S.day];
   const l=S.logs[S.day]; if(l&&(p.type!=="gym"||l.exercises)) return l;
-  return p.type==="gym"?defaultLog(S.day):{distance:"",duration:"",notes:""};
+  return p.type==="gym"?defaultLog(S.day):p.type==="rest"?{notes:""}:{distance:"",duration:"",notes:""};
 }
 function mutLog(fn) {
   const l=JSON.parse(JSON.stringify(getLog()));
   fn(l);
   if(PLAN[S.day].type==="gym"&&!l.gym) l.gym=sessionGym(l);
+  if(!l.label) l.label=PLAN[S.day].label; // so history keeps the day's name if the plan changes later
   S.logs={...S.logs,[S.day]:l};
   sSet(`logs:${WK}`,S.logs);
   S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
@@ -481,7 +802,6 @@ function mutLog(fn) {
 function renderSaveBtn() {} // no-op, kept for safety
 
 // ── Gyms: weights and kit differ, so hints compare like with like ─────────────
-const GYMS = ["Pure Gym","Tathams"];
 function sessionGym(log) { return (log&&log.gym)||sGet("lastGym")||GYMS[0]; }
 
 // ── Setup notes: your own seat heights, pins and handles, kept per gym + exercise ──
@@ -817,7 +1137,7 @@ function restTickFn() {
   if (ms <= 0 && !restTimer.fired) {
     restTimer.fired = true;
     clearRestTimers(); releaseScreen();
-    try { localStorage.removeItem(REST_KEY); } catch {}
+    sDel(REST_KEY);
     // In the app: the end bell is already booked on the audio clock. Away from the app: the service worker notifies.
     if (!document.hidden && -ms < 5000) {
       const booked = cueEndAt > 0 && audioCtx && audioCtx.state === 'running' && audioCtx.currentTime + 0.3 >= cueEndAt;
@@ -856,7 +1176,7 @@ function restSkip() {
   clearRestTimers();
   restTimer.fired = true;
   cancelCues(); stopKeepAlive(); releaseScreen();
-  try { localStorage.removeItem(REST_KEY); } catch {}
+  sDel(REST_KEY);
   swPost({ type: 'cancel' });
   closeRestOverlay();
 }
@@ -888,7 +1208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Object.assign(restTimer, saved);
     showRestOverlay(); scheduleRest();
   } else {
-    try { localStorage.removeItem(REST_KEY); } catch {}
+    sDel(REST_KEY);
   }
 });
 
@@ -919,16 +1239,28 @@ function renderView() {
 
   const hdr=mk("div","header");
   const hdrL=mk("div");
-  hdrL.appendChild(mkT("div","header-sub","Bulk Log"));
-  hdrL.appendChild(mkT("div","header-week",weekLabel(WK)));
-  const hdrR=mk("div","header-btns");
-  ["log","runs","mob","history"].forEach(v=>{
-    const b=mkT("button","tab-btn "+(S.view===v||S.view==="hist-detail"&&v==="history"?"tab-active":"tab-inactive"),{log:"Week",runs:"Runs",mob:"Mobility",history:"History"}[v]);
-    b.onclick=()=>{if(v==="history"){S.view="history";S.histSel=null;S.histLog=null;}else{S.view=v;}render();};
-    hdrR.appendChild(b);
-  });
-  hdr.append(hdrL,hdrR); app.appendChild(hdr);
+  // Tap the app name to switch person or add someone
+  const who=mkT("button","header-sub header-who",ME?`Bulk Log${ME.name?" · "+ME.name:""} ▾`:"Bulk Log");
+  if(ME) who.onclick=()=>{ S.view="people"; render(); };
+  hdrL.appendChild(who);
+  hdrL.appendChild(mkT("div","header-week",S.view==="setup"?(SETUP.mode==="edit"?"Change your setup":"Set up your plan"):weekLabel(WK)));
+  hdr.appendChild(hdrL);
+  if(ME){
+    const hdrR=mk("div","header-btns");
+    const tabs=CLASSIC?["log","runs","mob","food","history"]:["log","plan","food","history"];
+    tabs.forEach(v=>{
+      const b=mkT("button","tab-btn "+(S.view===v||S.view==="hist-detail"&&v==="history"?"tab-active":"tab-inactive"),{log:"Week",runs:"Runs",mob:"Mobility",plan:"Plan",food:"Food",history:"History"}[v]);
+      b.onclick=()=>{if(v==="history"){S.view="history";S.histSel=null;S.histLog=null;}else{S.view=v;}render();};
+      hdrR.appendChild(b);
+    });
+    hdr.appendChild(hdrR);
+  }
+  app.appendChild(hdr);
 
+  if(!ME||S.view==="setup"){renderSetup(app);return;}
+  if(S.view==="people"){renderPeople(app);return;}
+  if(S.view==="plan"){renderPlan(app);return;}
+  if(S.view==="food"){renderFood(app);return;}
   if(S.view==="history"||S.view==="hist-detail"){renderHistory(app);return;}
   if(S.view==="mob"){renderMobility(app);return;}
   if(S.view==="runs"){renderRuns(app);return;}
@@ -988,6 +1320,7 @@ function renderView() {
 
   const content=mk("div","content"); app.appendChild(content);
   if(p.type==="run") renderRun(content);
+  else if(p.type==="rest") renderRest(content);
   else renderGym(content,p);
 
   const saveBtn=mkT("div","auto-saved-indicator","✓ Changes saved automatically");
@@ -1045,14 +1378,17 @@ function renderGym(container, plan) {
   const dayDefs=DEFS[S.day]||[];
   const gym=sessionGym(log);
 
-  const gp=mk("div","gym-pick");
-  gp.appendChild(mkT("span","ex-config-label","Gym"));
-  GYMS.forEach(g=>{
-    const b=mkT("button","gym-btn"+(g===gym?" gym-btn-on":""),g);
-    b.onclick=()=>{ sSet("lastGym",g); mutLog(l=>l.gym=g); render(); };
-    gp.appendChild(b);
-  });
-  container.appendChild(gp);
+  if(GYMS.length>1){
+    const gp=mk("div","gym-pick");
+    gp.appendChild(mkT("span","ex-config-label","Gym"));
+    GYMS.forEach(g=>{
+      const b=mkT("button","gym-btn"+(g===gym?" gym-btn-on":""),g);
+      b.onclick=()=>{ sSet("lastGym",g); mutLog(l=>l.gym=g); render(); };
+      gp.appendChild(b);
+    });
+    container.appendChild(gp);
+  }
+  if(MYPLAN) container.appendChild(warmupEl(S.day));
 
   log.exercises.forEach((ex,ei)=>{
     const card=mk("div","ex-card");
@@ -1061,6 +1397,7 @@ function renderGym(container, plan) {
     const topRow=mk("div","ex-top-row");
     const handle=mkT("div","drag-handle","⠿");
     const nameInp=mk("input","ex-name-inp"); nameInp.placeholder=`Exercise ${ei+1}`; nameInp.value=ex.name||"";
+    if(MYPLAN){ nameInp.setAttribute("list","exlib"); nameInp.addEventListener("change",()=>fillFromLib(ei,nameInp.value)); }
     const vid=mkT("a","ex-vid","▶"); vid.target="_blank"; vid.rel="noopener"; vid.title="Form video";
     const setVid=()=>{ const n=nameInp.value.trim(); vid.href=n?exVideo(n):""; vid.style.visibility=n?"visible":"hidden"; };
     setVid();
@@ -1203,6 +1540,12 @@ function renderGym(container, plan) {
   const addEx=mkT("button","add-ex-btn","+ Add Exercise");
   addEx.onclick=()=>{ mutLog(l=>l.exercises.push({name:"",rl:null,rh:null,rpe:8,wj:2.5,sets:[{w:"",r:"",rpe:""}]})); render(); };
   container.appendChild(addEx);
+  // Personal plans: keep today's changes for every week from now on
+  if(MYPLAN&&S.logs[S.day]){
+    const keepB=mkT("button","add-ex-btn",`Make this my usual ${S.day}`);
+    keepB.onclick=()=>{ keepAsPlan(); keepB.textContent="Saved to your plan ✓"; };
+    container.appendChild(keepB);
+  }
 
   container.appendChild(mkT("div","fld-lbl","Session Notes"));
   const ta=mk("textarea","notes-ta"); ta.placeholder="Energy, PRs, injuries, anything to remember..."; ta.value=log.notes||"";
@@ -1235,7 +1578,7 @@ function setRuns(d) {
   if(RUNS&&RUNS.updated&&d.updated&&d.updated<RUNS.updated) return false;
   RUNS=d; sSet("runsData",d); return true;
 }
-fetch("runs.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{ if(setRuns(d)&&S.view==="runs") render(); }).catch(()=>{});
+if(CLASSIC) fetch("runs.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{ if(setRuns(d)&&S.view==="runs") render(); }).catch(()=>{});
 
 function fmtPace(s) { s=Math.round(s); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
 function runPace(r) { return r.sec/r.km; }
@@ -1349,12 +1692,16 @@ function renderRuns(app){
 }
 
 // ── Backup: every logged week in one JSON file ───────────────────────────────
+// Personal plan, setup answers and food details travel with the logs
+const EXTRA_KEYS=["plan","me","nutrition"];
 function exportBackup() {
   const data={};
   sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
   const setup=sGet(SETUP_KEY); if(setup&&Object.keys(setup).length) data[SETUP_KEY]=setup;
-  const json=JSON.stringify({app:"bulk-log",version:1,exported:new Date().toISOString(),data});
-  const name=`bulk-log-backup-${new Date().toISOString().split("T")[0]}.json`;
+  EXTRA_KEYS.forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
+  const json=JSON.stringify({app:"bulk-log",version:1,exported:new Date().toISOString(),name:ME&&ME.name||"",data});
+  const who=ME&&ME.name?ME.name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-":"";
+  const name=`bulk-log-backup-${who}${new Date().toISOString().split("T")[0]}.json`;
   const file=new File([json],name,{type:"application/json"});
   const done=()=>{ sSet("lastBackup",Date.now()); render(); };
   const download=()=>{
@@ -1375,15 +1722,18 @@ function importBackup(file) {
     const keys=Object.keys(data||{}).filter(k=>/^logs:\d{4}-\d{2}-\d{2}$/.test(k)&&data[k]&&typeof data[k]==="object");
     const setup=data&&data[SETUP_KEY]&&typeof data[SETUP_KEY]==="object"?data[SETUP_KEY]:null;
     const nSetup=setup?Object.keys(setup).length:0;
-    if(!keys.length&&!nSetup){
+    const extra=EXTRA_KEYS.filter(k=>data&&data[k]&&typeof data[k]==="object"&&(k!=="plan"||(MYPLAN&&data.plan.days)));
+    if(!keys.length&&!nSetup&&!extra.length){
       if(b&&Array.isArray(b.runs)){ RUNS=null; setRuns(b); render(); alert(`Loaded ${b.runs.length} Strava runs.`); return; }
       alert("No workout weeks found in that file."); return;
     }
-    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`].filter(Boolean).join(" and ");
+    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`,extra.includes("plan")&&"your plan"].filter(Boolean).join(" and ")||"your details";
     const when=b.exported?` from ${new Date(b.exported).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`:"";
     if(!confirm(`Restore ${what}${when}?\n\nWeeks and setup notes in the backup replace the same ones on this device. Everything else is kept.`)) return;
     keys.forEach(k=>sSet(k,data[k]));
     if(nSetup) sSet(SETUP_KEY,{...(sGet(SETUP_KEY)||{}),...setup});
+    extra.forEach(k=>sSet(k,data[k]));
+    if(extra.includes("plan")){ MYSETUP=sGet("me")||MYSETUP; applyPlan(sGet("plan")); }
     S.logs=sGet(`logs:${WK}`)||{};
     S.histWeeks=sList("logs:").map(k=>k.replace("logs:","")).filter(k=>k!==WK).sort().reverse();
     render();
@@ -1405,10 +1755,10 @@ function renderHistory(app){
       const dh=mk("div","hist-day-hdr");
       dh.appendChild(mkT("span","",p.icon+" "));
       const di=mk("div");
-      di.appendChild(mkT("div","hist-day-title",`${day} — ${p.label}${log.gym?" · "+log.gym:""}`));
-      if(p.muscles) di.appendChild(mkT("div","hist-day-muscles",p.muscles));
+      di.appendChild(mkT("div","hist-day-title",`${day} — ${log.label||p.label}${log.gym?" · "+log.gym:""}`));
+      if(p.muscles&&(!log.label||log.label===p.label)) di.appendChild(mkT("div","hist-day-muscles",p.muscles));
       dh.appendChild(di); card.appendChild(dh);
-      if(!log.exercises){
+      if(!log.exercises&&"distance" in log){ // a run (rest days only have notes)
         const rs=mk("div","run-stats");
         [["Distance",log.distance?`${log.distance} km`:"—"],["Duration",log.duration?`${log.duration} min`:"—"]].forEach(([l,v])=>{
           const w=mk("div"); w.appendChild(mkT("div","stat-lbl",l)); w.appendChild(mkT("div","stat-val",v)); rs.appendChild(w);
@@ -1456,6 +1806,489 @@ function renderHistory(app){
     content.appendChild(b);
   });
 }
+
+// ── Setup: a few questions that build a personal plan ─────────────────────────
+let SETUP = { mode:"first", d:null };
+function setupDraft(mode) {
+  const d=mode==="edit"&&MYSETUP?JSON.parse(JSON.stringify(MYSETUP))
+    :{ name:"", goal:"muscle", exp:"some", days:["Monday","Wednesday","Friday"], len:60, pri:[], eq:"gym", avoid:[], run:"none", gyms:"" };
+  if(mode==="edit"&&ME) d.name=ME.name||"";
+  SETUP={ mode, d };
+}
+setupDraft(ME&&MYPLAN?"edit":"first");
+// Switching person or building a plan reloads the app from the top
+function reloadTop() { window.scrollTo(0,0); try { history.scrollRestoration="manual"; } catch {} location.reload(); }
+function newId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function personName(p) { return p.name||(p.classic?"Original plan":"No name"); }
+
+function chipsEl(opts, isOn, onTap) {
+  const c=mk("div","chips");
+  opts.forEach(([v,l])=>{
+    const b=mkT("button","chip"+(isOn(v)?" chip-on":""),l);
+    b.onclick=()=>{ onTap(v); render(); };
+    c.appendChild(b);
+  });
+  return c;
+}
+function toggle(list, v, max) { return list.includes(v)?list.filter(x=>x!==v):list.length<max?[...list,v]:list; }
+
+function renderSetup(app) {
+  const d=SETUP.d, content=mk("div","content"); app.appendChild(content);
+  if(SETUP.mode==="first"){
+    const intro=mk("div","ex-card");
+    intro.appendChild(mkT("div","mob-sec-t","Welcome to Bulk Log"));
+    intro.appendChild(mkT("div","food-p","Answer these and it builds a training plan around you. You can change any of it afterwards. Everything stays on this phone."));
+    content.appendChild(intro);
+  }
+  const q=(title,help)=>{ const w=mk("div","q"); w.appendChild(mkT("div","q-t",title)); if(help) w.appendChild(mkT("div","q-h",help)); content.appendChild(w); return w; };
+  let w=q("Your name","Shown at the top, so you know whose plan it is");
+  const ni=mk("input","fld-inp"); ni.value=d.name||""; ni.placeholder="e.g. Sam"; ni.maxLength=20;
+  ni.addEventListener("input",()=>{ d.name=ni.value; });
+  w.appendChild(ni);
+  q("Main goal").appendChild(chipsEl([["muscle","Build muscle"],["strength","Get stronger"],["fatloss","Lose fat, keep muscle"],["fitness","Get fitter"]],v=>d.goal===v,v=>d.goal=v));
+  q("Lifting experience").appendChild(chipsEl([["new","New (under 6 months)"],["some","Some (6 months to 2 years)"],["exp","Experienced (2+ years)"]],v=>d.exp===v,v=>d.exp=v));
+  q("Which days can you lift?",`${d.days.length} picked · up to 6 · 2 or 3 is plenty if you're new`)
+    .appendChild(chipsEl(DAYS.map(x=>[x,x.slice(0,3)]),v=>d.days.includes(v),v=>d.days=toggle(d.days,v,6)));
+  q("How long is a session?").appendChild(chipsEl([[45,"45 min"],[60,"1 hour"],[75,"75 min"],[90,"90 min"]],v=>d.len===v,v=>d.len=v));
+  q("What do you most want to bring up?","Pick up to 3. They go first in each session and get an extra set.")
+    .appendChild(chipsEl(Object.entries(PRI_LBL),v=>d.pri.includes(v),v=>d.pri=toggle(d.pri,v,3)));
+  q("Where do you train?").appendChild(chipsEl([["gym","Full gym"],["db","Dumbbells and a bench"],["home","Home: bodyweight and bands"]],v=>d.eq===v,v=>d.eq=v));
+  w=q("Your gym names (optional)","Two gyms? Separate them with a comma. Weights and history are kept per gym.");
+  const gi=mk("input","fld-inp"); gi.value=d.gyms||""; gi.placeholder="e.g. PureGym, Work gym";
+  gi.addEventListener("input",()=>{ d.gyms=gi.value; });
+  w.appendChild(gi);
+  q("Anything to go easy on?","The plan steers away from exercises that load these. If something hurts, stop and get it checked by a physio.")
+    .appendChild(chipsEl(Object.entries(AREA).map(([k,v])=>[k,v[0].toUpperCase()+v.slice(1)]),v=>d.avoid.includes(v),v=>d.avoid=toggle(d.avoid,v,4)));
+  q("Do you run?","Runs go on the days you're not lifting.")
+    .appendChild(chipsEl([["none","No"],["some","1–2 runs a week"],["lots","3 or more"]],v=>d.run===v,v=>d.run=v));
+
+  const go=mkT("button","primary-btn",SETUP.mode==="edit"?"Rebuild my plan":"Build my plan");
+  go.disabled=!d.days.length;
+  go.onclick=submitSetup;
+  content.appendChild(go);
+  if(SETUP.mode!=="first"){
+    const cancel=mkT("button","link-btn","Cancel");
+    cancel.onclick=()=>{ S.view=SETUP.mode==="edit"?"plan":"people"; render(); };
+    content.appendChild(cancel);
+    return;
+  }
+  // First time on this phone: bring back a backup instead, or use the original plan
+  const fi=mk("input"); fi.type="file"; fi.accept=".json,application/json"; fi.style.display="none";
+  fi.onchange=()=>{ if(fi.files[0]) restoreFirst(fi.files[0]); fi.value=""; };
+  const rb=mkT("button","link-btn","Already have a backup? Restore it");
+  rb.onclick=()=>fi.click();
+  content.append(rb,fi);
+  if(!PROFILES.list.some(p=>p.classic)){
+    const ob=mkT("button","link-btn","Use the original Bulk Log plan instead");
+    ob.onclick=()=>{ PROFILES.list.push({ id:"me", name:"", classic:true }); PROFILES.active="me"; gSet("profiles",PROFILES); reloadTop(); };
+    content.appendChild(ob);
+  }
+}
+
+function submitSetup() {
+  const d=SETUP.d; if(!d.days.length) return;
+  d.name=(d.name||"").trim();
+  if(SETUP.mode==="edit"){
+    if(!confirm("Rebuild your plan from these answers?\n\nYour history stays. Changes you made in Plan are replaced.")) return;
+    const pr=PROFILES.list.find(p=>p.id===ME.id); if(pr){ pr.name=d.name; gSet("profiles",PROFILES); }
+  } else {
+    // A new person, or someone whose plan went missing
+    let pr=SETUP.mode==="first"&&PROFILES.list.find(p=>p.id===PROFILES.active&&!p.classic);
+    if(!pr){ pr={ id:newId(), name:"" }; PROFILES.list.push(pr); }
+    pr.name=d.name||(PROFILES.list.length>1?`Person ${PROFILES.list.length}`:"");
+    PROFILES.active=pr.id; gSet("profiles",PROFILES);
+    PFX=`u:${pr.id}:`;
+  }
+  sSet("me",d); sSet("plan",buildPlan(d)); sSet("justBuilt",1);
+  reloadTop();
+}
+
+function restoreFirst(file) {
+  const rd=new FileReader();
+  rd.onload=()=>{
+    let b; try{ b=JSON.parse(rd.result); }catch{ alert("That file isn't a Bulk Log backup."); return; }
+    const data=b&&b.data&&typeof b.data==="object"?b.data:b;
+    const keys=Object.keys(data||{}).filter(k=>(/^logs:\d{4}-\d{2}-\d{2}$/.test(k)||k===SETUP_KEY||EXTRA_KEYS.includes(k))&&data[k]&&typeof data[k]==="object");
+    if(!keys.length){ alert("No workout weeks found in that file."); return; }
+    let pr;
+    if(data.plan&&data.plan.days){ pr={ id:newId(), name:String(b.name||"").trim().slice(0,20) }; PFX=`u:${pr.id}:`; }
+    else {
+      // A backup without a personal plan is from the original plan
+      if(PROFILES.list.some(p=>p.classic)){ alert("This phone already has the original plan. Switch to it and restore there."); return; }
+      pr={ id:"me", name:"", classic:true }; PFX="";
+    }
+    keys.forEach(k=>sSet(k,data[k]));
+    PROFILES.list.push(pr); PROFILES.active=pr.id; gSet("profiles",PROFILES);
+    reloadTop();
+  };
+  rd.readAsText(file);
+}
+
+// ── People on this phone ──────────────────────────────────────────────────────
+function renderPeople(app) {
+  const content=mk("div","content"); app.appendChild(content);
+  const back=mkT("button","back-btn","← Back"); back.onclick=()=>{ S.view="log"; render(); };
+  content.appendChild(back);
+  const card=mk("div","ex-card");
+  card.appendChild(mkT("div","mob-sec-t","People on this phone"));
+  card.appendChild(mkT("div","mob-sec-w","Each person has their own plan, history and backups. Nothing is shared between them."));
+  PROFILES.list.forEach(p=>{
+    const row=mk("div","mob-row"), left=mk("div","mob-left");
+    left.appendChild(mkT("div","mob-name",personName(p)));
+    left.appendChild(mkT("div","mob-note",p.id===ME.id?"Using now":p.classic?"Original plan":"Personal plan"));
+    row.appendChild(left);
+    const btns=mk("div","row-btns");
+    if(p.id!==ME.id){
+      const sw=mkT("button","swap-btn","Switch");
+      sw.onclick=()=>{ PROFILES.active=p.id; gSet("profiles",PROFILES); reloadTop(); };
+      btns.appendChild(sw);
+      if(!p.classic){
+        const del=mkT("button","ex-rm","✕"); del.title="Remove";
+        del.onclick=()=>{
+          if(!confirm(`Remove ${personName(p)} and all their history from this phone?\n\nThis can't be undone unless they have a backup.`)) return;
+          const pre=`u:${p.id}:`, ks=[];
+          for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(pre)) ks.push(k); }
+          ks.forEach(k=>{ try{ localStorage.removeItem(k); }catch{} });
+          PROFILES.list=PROFILES.list.filter(x=>x.id!==p.id); gSet("profiles",PROFILES); render();
+        };
+        btns.appendChild(del);
+      }
+    }
+    row.appendChild(btns); card.appendChild(row);
+  });
+  content.appendChild(card);
+
+  const rc=mk("div","ex-card");
+  rc.appendChild(mkT("div","fld-lbl","Your name"));
+  const ni=mk("input","fld-inp"); ni.value=ME.name||""; ni.maxLength=20; ni.placeholder=ME.classic?"Original plan":"Your name";
+  ni.addEventListener("change",()=>{ const pr=PROFILES.list.find(x=>x.id===ME.id); pr.name=ME.name=ni.value.trim(); gSet("profiles",PROFILES); render(); });
+  rc.appendChild(ni); content.appendChild(rc);
+
+  const add=mkT("button","add-ex-btn","+ Add a person");
+  add.onclick=()=>{ setupDraft("new"); S.view="setup"; render(); };
+  content.appendChild(add);
+  content.appendChild(mkT("div","backup-note","Handy for trying a plan out or sharing a phone. Friends on their own phones just open the link."));
+}
+
+// ── Plan: your week, yours to change ──────────────────────────────────────────
+function planMut(fn) {
+  const p=sGet("plan"); if(!p) return;
+  fn(p);
+  DAYS.forEach(d=>{ const x=p.days[d]; if(x&&x.type==="gym") x.muscles=dayMuscles(x.exercises)||x.muscles||""; });
+  sSet("plan",p); applyPlan(p);
+}
+function libAlts(name) {
+  const L=LIBMAP[name]; if(!L) return [];
+  return LIB.filter(o=>o.slot===L.slot&&o.n!==name&&eqOK(o,(MYSETUP||{}).eq)).slice(0,3).map(o=>o.n);
+}
+function setupSummary(me) {
+  const g={ muscle:"Build muscle", strength:"Get stronger", fatloss:"Lose fat", fitness:"Get fitter" }[me.goal];
+  const x={ new:"New to lifting", some:"Some experience", exp:"Experienced" }[me.exp];
+  const kit={ gym:"Full gym", db:"Dumbbells and a bench", home:"Home" }[me.eq];
+  return [g, x, `${(me.days||[]).length} days, ${me.len===60?"1 hour":me.len+" min"}`,
+    (me.pri||[]).length&&`${me.pri.map(m=>PRI_LBL[m]).join(", ")} first`, kit,
+    (me.avoid||[]).length&&`Easy on ${me.avoid.map(a=>AREA[a]).join(", ")}`,
+    { some:"1–2 runs a week", lots:"3+ runs a week" }[me.run]].filter(Boolean).join(" · ");
+}
+
+function renderPlan(app) {
+  const content=mk("div","content"); app.appendChild(content);
+  if(sGet("justBuilt")){
+    sDel("justBuilt");
+    const hi=mk("div","hint"); hi.style.background="#27AE6018"; hi.style.border="1px solid #27AE6055";
+    const t=mk("div"); t.append(mkT("div","hint-type","Your plan is ready"),mkT("div","hint-msg","Change anything below and it's yours. Open Week to start logging."));
+    t.firstChild.style.color="#27AE60"; hi.append(mkT("span","","✅"),t); content.appendChild(hi);
+  }
+  const sc=mk("div","ex-card");
+  sc.appendChild(mkT("div","mob-sec-t","Your setup"));
+  sc.appendChild(mkT("div","mob-note",setupSummary(MYSETUP||{})));
+  const ch=mkT("button","swap-btn plan-setup-btn","Change setup and rebuild");
+  ch.onclick=()=>{ setupDraft("edit"); S.view="setup"; render(); };
+  sc.appendChild(ch); content.appendChild(sc);
+  content.appendChild(mkT("div","backup-note","Changes count from now on. Days you've already logged this week keep what you did."));
+  DAYS.forEach(d=>content.appendChild(planDayCard(d)));
+
+  const gc=mk("div","ex-card");
+  gc.appendChild(mkT("div","fld-lbl","Your gyms"));
+  gc.appendChild(mkT("div","mob-note","Separate two gyms with a comma. Weights and history are kept per gym."));
+  const gi=mk("input","fld-inp"); gi.style.marginTop="8px"; gi.value=GYMS.join(", ");
+  gi.addEventListener("change",()=>{ const g=gi.value.split(",").map(x=>x.trim()).filter(Boolean).slice(0,3); planMut(p=>p.gyms=g.length?g:["My gym"]); render(); });
+  gc.appendChild(gi); content.appendChild(gc);
+}
+
+function numInp(cls, val, ph, on) {
+  const i=mk("input",cls); i.type="number"; i.inputMode="numeric"; i.value=val??""; i.placeholder=ph;
+  i.addEventListener("input",()=>on(i.value===""?null:+i.value));
+  return i;
+}
+
+function planDayCard(d) {
+  const x=MYPLAN.days[d]||{ type:"rest" };
+  const card=mk("div","ex-card");
+  const top=mk("div","plan-day-top");
+  top.appendChild(mkT("div","mob-sec-t",d));
+  top.appendChild(chipsEl([["gym","Lift"],["run","Run"],["rest","Rest"]],v=>x.type===v,v=>planMut(p=>{
+    const cur=p.days[d]||{ type:"rest" }; if(cur.type===v) return;
+    p.stash=p.stash||{};
+    if(cur.type==="gym") p.stash[d]=cur; // keep the exercises in case you switch back
+    p.days[d]=v==="gym"?(p.stash[d]||{ type:"gym", label:"Workout", icon:"💪", exercises:[] })
+      :v==="run"?{ type:"run", label:"Run", icon:"🏃", muscles:"Your pace, your distance" }
+      :{ type:"rest", label:"Rest", icon:"😴", muscles:"Walk, stretch, recover" };
+  })));
+  card.appendChild(top);
+  if(x.type!=="gym"){ card.appendChild(mkT("div","mob-note",x.muscles||"")); return card; }
+
+  const li=mk("input","fld-inp plan-label"); li.value=x.label||""; li.placeholder="Session name, e.g. Upper";
+  li.addEventListener("input",()=>planMut(p=>p.days[d].label=li.value.trim()||"Workout"));
+  card.appendChild(li);
+  if(x.muscles) card.appendChild(mkT("div","mob-note",x.muscles));
+  (x.exercises||[]).forEach((e,i)=>{
+    const row=mk("div","plan-ex");
+    const r1=mk("div","ex-top-row");
+    const ni=mk("input","ex-name-inp"); ni.value=e.name||""; ni.placeholder="Exercise"; ni.setAttribute("list","exlib");
+    ni.addEventListener("change",()=>{
+      const v=ni.value.trim();
+      planMut(p=>{
+        const ex=p.days[d].exercises[i]; ex.name=v;
+        const L=LIBMAP[v];
+        if(L) Object.assign(ex,libTargets(L,MYSETUP),{ alts:libAlts(v), note:L.note||"" });
+        else { ex.alts=[]; ex.note=""; }
+      });
+      render();
+    });
+    const rm=mkT("button","ex-rm","✕");
+    rm.onclick=()=>{ planMut(p=>p.days[d].exercises.splice(i,1)); render(); };
+    r1.append(ni,rm); row.appendChild(r1);
+    const set=(k,v)=>planMut(p=>{ p.days[d].exercises[i][k]=v; });
+    const r2=mk("div","ex-config-row");
+    r2.appendChild(mkT("span","ex-config-label","Sets"));
+    r2.appendChild(numInp("range-inp",e.s,"3",v=>set("s",Math.max(1,Math.min(10,v||1)))));
+    r2.appendChild(mkT("span","ex-config-label","Reps"));
+    r2.appendChild(numInp("range-inp",e.rl,"8",v=>set("rl",v)));
+    r2.appendChild(mkT("span","range-sep","–"));
+    r2.appendChild(numInp("range-inp",e.rh,"12",v=>set("rh",v)));
+    r2.appendChild(mkT("span","ex-config-label","RPE"));
+    r2.appendChild(numInp("rpe-target-inp",e.rpe,"8",v=>set("rpe",v)));
+    row.appendChild(r2);
+    // Rest, then move up or down
+    const r3=mk("div","ex-config-row");
+    r3.appendChild(mkT("span","ex-config-label","Rest"));
+    r3.appendChild(numInp("rest-dur-cfg",e.rest,"90",v=>set("rest",v||90)));
+    r3.appendChild(mkT("span","ex-config-label","s"));
+    const mv=mk("div","ex-actions");
+    const up=mkT("button","swap-btn","↑ Up"), dn=mkT("button","swap-btn","↓ Down");
+    up.disabled=i===0; dn.disabled=i===x.exercises.length-1;
+    const move=dir=>{ planMut(p=>{ const a=p.days[d].exercises; const [m]=a.splice(i,1); a.splice(i+dir,0,m); }); render(); };
+    up.onclick=()=>move(-1); dn.onclick=()=>move(1);
+    mv.append(up,dn); r3.appendChild(mv);
+    row.appendChild(r3);
+    card.appendChild(row);
+  });
+  const add=mkT("button","add-set-btn","+ Add exercise");
+  add.onclick=()=>{ planMut(p=>p.days[d].exercises.push({ name:"", rl:8, rh:12, rpe:8, s:3, wj:2.5, rest:90, alts:[], note:"" })); render(); };
+  card.appendChild(add);
+  return card;
+}
+
+// From the Week view: today's exercises, sets and targets become the plan for this day
+function keepAsPlan() {
+  const log=getLog(), defs=DEFS[S.day]||[];
+  planMut(p=>{
+    const day=p.days[S.day]; if(!day||day.type!=="gym") return;
+    day.exercises=(log.exercises||[]).filter(e=>(e.name||"").trim()).map(e=>{
+      const def=defs.find(x=>x.name===e.name||(x.alts||[]).includes(e.name)), L=LIBMAP[e.name];
+      return { name:e.name, rl:e.rl, rh:e.rh, rpe:e.rpe, wj:e.wj??2.5, rest:e.rest||90, s:Math.max(1,(e.sets||[]).length),
+        alts:def?[def.name,...(def.alts||[])].filter(n=>n!==e.name).slice(0,4):libAlts(e.name),
+        note:def&&def.name===e.name?def.note||"":(L&&L.note)||"" };
+    });
+  });
+}
+// Typing a library exercise into a card fills in its targets
+function fillFromLib(ei, name) {
+  const L=LIBMAP[(name||"").trim()]; if(!L) return;
+  const t=libTargets(L,MYSETUP);
+  mutLog(l=>{ Object.assign(l.exercises[ei],{ rl:t.rl, rh:t.rh, rpe:t.rpe, wj:t.wj, rest:t.rest }); });
+  render();
+}
+
+// Warm-up for a personal plan's gym day, from what's in the session
+function warmupEl(day) {
+  const x=MYPLAN.days[day]||{}, me=MYSETUP||{}, pri=me.pri||[], av=me.avoid||[];
+  const fams=new Set((DEFS[day]||[]).map(e=>LIBMAP[e.name]&&SLOT[LIBMAP[e.name].slot].fam).filter(Boolean));
+  const lower=fams.has("lower")||x.kind&&/full|lower|legs/.test(x.kind), upper=fams.has("push")||fams.has("pull");
+  const items=[["Easy cardio","5 min","Bike, rower or a brisk walk · RPE 3",null]];
+  if(lower){
+    items.push(["Glute bridge","1×12","Squeeze 2s at the top",YT("glute bridge form")]);
+    if(pri.includes("glutes")) items.push(["Banded clamshell","1×12/side","Hips stacked, don't roll back",YT("banded clamshell form")],
+      ["Mini-band lateral walk","1×10 steps each way","Small steps, toes forward",YT("mini band lateral walk form")]);
+    items.push(["Leg swings","10 each way/leg","Hold on to something for balance",YT("leg swings warm up")]);
+    if(av.includes("knee")) items.push(["Knee-to-wall ankle mobility","5/side","",YT("knee to wall ankle mobilization")]);
+    if(av.includes("back")) items.push(["Dead bug","1×8/side","Sets the lower back before loading",YT("dead bug exercise form")]);
+  }
+  if(upper){
+    items.push(["Band pull-apart","1×15","Arms straight out in front",YT("band pull apart form")]);
+    items.push(["Band external rotation","1×15/side","Elbow tucked at your side",YT("band external rotation elbow at side")]);
+  }
+  items.push(["Ramp-up sets on the first lift","~50%×8, ~75%×5","Light sets that don't count · 60s rest",null]);
+  const det=mk("details","warm"); det.open=!!S.warmOpen;
+  det.addEventListener("toggle",()=>{ S.warmOpen=det.open; });
+  det.appendChild(mkT("summary","warm-sum","Warm-up · about 8 minutes"));
+  items.forEach(([n,dose,note,u])=>{
+    const row=mk("div","mob-row"), left=mk("div","mob-left");
+    let nm;
+    if(u){ nm=mk("a","mob-link"); nm.href=u; nm.target="_blank"; nm.rel="noopener"; nm.textContent=n+" ▶"; }
+    else nm=mkT("div","mob-name",n);
+    left.appendChild(nm);
+    if(note) left.appendChild(mkT("div","mob-note",note));
+    row.append(left,mkT("div","mob-dose",dose));
+    det.appendChild(row);
+  });
+  return det;
+}
+
+function renderRest(container) {
+  const log=getLog();
+  container.appendChild(mkT("div","rest-day","Rest day. Recovery is when you get stronger: a walk, some stretching, or nothing at all."));
+  container.appendChild(mkT("div","fld-lbl","Notes"));
+  const ta=mk("textarea","notes-ta"); ta.placeholder="Sleep, soreness, steps, anything to remember..."; ta.value=log.notes||"";
+  ta.addEventListener("change",()=>{ mutLog(l=>l.notes=ta.value); });
+  container.appendChild(ta);
+}
+
+// ── Food: calories and macros from your details and goal ──────────────────────
+const ACT=[
+  [1.2,"Mostly sitting","Desk job, little or no exercise"],
+  [1.375,"Lightly active","Desk job and 1–3 workouts a week"],
+  [1.55,"Moderately active","Desk job and 4–5 workouts, or on your feet with 2–3"],
+  [1.725,"Very active","6+ workouts a week, or a physical job and regular training"],
+  [1.9,"Extremely active","Physical job and hard training most days"],
+];
+const NGOAL={ lose:"Lose fat", maintain:"Maintain", lean:"Lean bulk", bulk:"Bulk" };
+function foodDefaults() {
+  const me=MYSETUP||{}, n=DAYS.filter(d=>PLAN[d]&&PLAN[d].type!=="rest"&&!/rest/i.test(PLAN[d].label)).length;
+  return { units:"metric", sex:"", age:"", cm:"", kg:"", bf:"", act:n<=3?1.375:n<=5?1.55:1.725,
+    goal:{ fatloss:"lose", fitness:"maintain" }[me.goal]||"lean", pace:"steady" };
+}
+// Calories: Mifflin-St Jeor, or Katch-McArdle when body fat is known · protein in g per kg (per kg lean mass if known)
+function foodCalc(n) {
+  const age=+n.age, cm=+n.cm, kg=+n.kg, bf=+n.bf;
+  if(!n.sex||!(age>=18&&age<=90&&cm>=120&&cm<=230&&kg>=35&&kg<=250)) return null;
+  const lbm=bf>=4&&bf<=60?kg*(1-bf/100):null;
+  const bmr=lbm?370+21.6*lbm:10*kg+6.25*cm-5*age+(n.sex==="m"?5:-161);
+  const tdee=bmr*n.act;
+  let kcal=tdee, wk=0, floor=false;
+  if(n.goal==="lose"){
+    const pct={ gentle:0.004, steady:0.006, fast:0.009 }[n.pace]||0.006;
+    kcal=tdee-Math.min(pct*kg*7700/7,tdee*0.25); // no more than a quarter below maintenance
+    if(kcal<bmr){ kcal=bmr; floor=true; }
+    wk=(tdee-kcal)*7/7700;
+  } else if(n.goal==="lean") kcal=tdee*1.1;
+  else if(n.goal==="bulk") kcal=tdee*1.2;
+  kcal=Math.round(kcal/50)*50;
+  const m=cm/100, ref=kg/(m*m)>30?25*m*m:kg; // above a BMI of 30, protein is based on a BMI-25 weight
+  const prot=lbm?{ lose:2.6, maintain:2.4, lean:2.3, bulk:2.2 }[n.goal]*lbm:{ lose:2.2, maintain:2.0, lean:2.0, bulk:1.8 }[n.goal]*ref;
+  const P=Math.round(prot/5)*5, F=Math.round(Math.max(kcal*0.25/9,0.6*kg)/5)*5, C=Math.max(0,Math.round((kcal-P*4-F*9)/4/5)*5);
+  return { bmr:Math.round(bmr), tdee:Math.round(tdee/10)*10, kcal, P, F, C, water:Math.round(kg*0.035*10)/10, wk, floor, lbm, kg };
+}
+function fmtW(kg, units) {
+  if(units==="imperial"){ const lb=kg/0.453592; return `${lb<10?lb.toFixed(1):Math.round(lb)} lb`; }
+  return `${kg<10?(Math.round(kg*10)/10).toFixed(1):Math.round(kg)} kg`;
+}
+
+function renderFood(app) {
+  const content=mk("div","content"); app.appendChild(content);
+  const n={ ...foodDefaults(), ...(sGet("nutrition")||{}) };
+  const save=()=>sSet("nutrition",n);
+  const imp=n.units==="imperial";
+
+  const card=mk("div","ex-card");
+  card.appendChild(mkT("div","mob-sec-t","Your details"));
+  card.appendChild(mkT("div","mob-sec-w","Used to estimate what you burn in a day. Saved on this phone only."));
+  const sec=(t,el)=>{ const w=mk("div","q"); w.appendChild(mkT("div","fld-lbl",t)); w.appendChild(el); card.appendChild(w); return w; };
+  sec("Units",chipsEl([["metric","kg and cm"],["imperial","st, lb, ft and in"]],v=>n.units===v,v=>{ n.units=v; save(); }));
+  sec("Sex (for the calorie formula)",chipsEl([["m","Male"],["f","Female"]],v=>n.sex===v,v=>{ n.sex=v; save(); }));
+
+  const out=mk("div");
+  const upd=()=>{ save(); fillFood(out,n); };
+  const field=(label,inputs)=>{ const w=mk("div"); w.appendChild(mkT("div","fld-lbl",label)); const r=mk("div","unit-inp"); inputs.forEach(x=>r.appendChild(x)); w.appendChild(r); return w; };
+  const ni=(val,ph,on,unit)=>{ const i=mk("input","fld-inp"); i.type="number"; i.inputMode="decimal"; i.value=val; i.placeholder=ph;
+    i.addEventListener("input",()=>{ on(i.value); upd(); }); const w=mk("div","unit-cell"); w.append(i,mkT("span","unit-lbl",unit)); return w; };
+  const grid=mk("div","fld-row");
+  grid.appendChild(field("Age",[ni(n.age,"30",v=>n.age=v,"yrs")]));
+  if(imp){
+    const tin=n.cm?n.cm/2.54:0, ft=n.cm?Math.floor(tin/12):"", inch=n.cm?Math.round(tin-ft*12):"";
+    const ftI=ni(ft,"5",v=>setH(),"ft"), inI=ni(inch,"10",v=>setH(),"in");
+    const setH=()=>{ const f=+ftI.firstChild.value||0, i=+inI.firstChild.value||0; n.cm=f||i?Math.round((f*12+i)*2.54*10)/10:""; };
+    grid.appendChild(field("Height",[ftI,inI]));
+    const tlb=n.kg?n.kg/0.453592:0, st=n.kg?Math.floor(tlb/14):"", lb=n.kg?Math.round(tlb-st*14):"";
+    const stI=ni(st,"12",v=>setW(),"st"), lbI=ni(lb,"6",v=>setW(),"lb");
+    const setW=()=>{ const s=+stI.firstChild.value||0, l=+lbI.firstChild.value||0; n.kg=s||l?Math.round((s*14+l)*0.453592*10)/10:""; };
+    grid.appendChild(field("Weight",[stI,lbI]));
+  } else {
+    grid.appendChild(field("Height",[ni(n.cm,"178",v=>n.cm=v,"cm")]));
+    grid.appendChild(field("Weight",[ni(n.kg,"80",v=>n.kg=v,"kg")]));
+  }
+  grid.appendChild(field("Body fat (optional)",[ni(n.bf,"18",v=>n.bf=v,"%")]));
+  card.appendChild(grid);
+  card.appendChild(mkT("div","q-h","Know your body fat from a scan, callipers or a smart scale? It makes the estimate more accurate. Leave it blank if not."));
+
+  const act=mk("div");
+  ACT.forEach(([k,t,dsc])=>{
+    const b=mk("button","chip act-opt"+(n.act===k?" chip-on":""));
+    b.append(mkT("div","",t),mkT("div","act-d",dsc));
+    b.onclick=()=>{ n.act=k; save(); render(); };
+    act.appendChild(b);
+  });
+  sec("How active are you?",act);
+  sec("Goal",chipsEl(Object.entries(NGOAL),v=>n.goal===v,v=>{ n.goal=v; save(); }));
+  if(n.goal==="lose") sec("How fast?",chipsEl([["gentle","Gentle"],["steady","Steady"],["fast","Faster"]],v=>n.pace===v,v=>{ n.pace=v; save(); }));
+  content.appendChild(card);
+
+  const res=mk("div","ex-card"); res.appendChild(out); content.appendChild(res);
+  fillFood(out,n);
+
+  const how=mk("div","ex-card");
+  how.appendChild(mkT("div","mob-sec-t","How to use it"));
+  ["Hit your protein every day. Calories can average out over the week, so a bigger training day and a lighter rest day is fine.",
+   "Weigh yourself most mornings and compare 7-day averages every 2 weeks.",
+   "Off track? Change by about 150 kcal a day, mostly from carbs or fat, and keep protein the same.",
+   "These are estimates for healthy adults. If you're pregnant, managing a health condition or have a history of eating disorders, talk to a GP or dietitian first."
+  ].forEach(t=>how.appendChild(mkT("div","food-p",t)));
+  content.appendChild(how);
+}
+
+function fillFood(out, n) {
+  out.innerHTML="";
+  const r=foodCalc(n), imp=n.units==="imperial";
+  if(!r){
+    out.appendChild(mkT("div","mob-sec-t","Your daily targets"));
+    out.appendChild(mkT("div","mob-note",n.age&&+n.age<18?"This calculator is for adults (18 and over).":"Fill in sex, age, height and weight to see your targets."));
+    return;
+  }
+  out.appendChild(mkT("div","fld-lbl","Your daily targets"));
+  out.appendChild(mkT("div","big-kcal",`${r.kcal.toLocaleString("en-GB")} kcal`));
+  const adj={ lose:"for steady fat loss", maintain:"to hold your weight", lean:"plus 10% for a lean bulk", bulk:"plus 20% for a bulk" }[n.goal];
+  out.appendChild(mkT("div","mob-note",`You burn about ${r.tdee.toLocaleString("en-GB")} kcal a day · this is ${n.goal==="maintain"?"that amount":adj}`));
+  const g=mk("div","macro-grid");
+  [["Protein",r.P,4],["Carbs",r.C,4],["Fat",r.F,9]].forEach(([l,v,k])=>{
+    const c=mk("div","macro");
+    c.append(mkT("div","macro-l",l),mkT("div","macro-v",`${v} g`),mkT("div","macro-k",`${(v*k).toLocaleString("en-GB")} kcal`));
+    g.appendChild(c);
+  });
+  out.appendChild(g);
+  const rate=n.goal==="lose"?`Expect to lose about ${fmtW(r.wk,n.units)} a week`
+    :n.goal==="lean"?`Expect to gain about ${fmtW(r.kg*0.005,n.units)}–${fmtW(r.kg*0.01,n.units)} a month`
+    :n.goal==="bulk"?`Expect to gain about ${fmtW(r.kg*0.01,n.units)}–${fmtW(r.kg*0.02,n.units)} a month`
+    :"Expect your weight to hold steady";
+  out.appendChild(mkT("div","food-p",rate));
+  out.appendChild(mkT("div","mob-note",`Fibre 30 g · water about ${r.water} litres, more on training days`));
+  if(r.floor) out.appendChild(mkT("div","mob-note","Kept at your resting burn so it doesn't go too low. Lose fat with more activity rather than eating less than this."));
+  out.appendChild(mkT("div","mob-note",r.lbm?`Based on your lean mass (${fmtW(r.lbm,n.units)}) and ${Math.round(r.P/r.lbm*10)/10} g protein per kg of it`
+    :`Protein is ${Math.round(r.P/r.kg*10)/10} g per kg of body weight`));
+}
+
+// Exercise names to pick from when typing one in
+(()=>{ const dl=mk("datalist"); dl.id="exlib"; LIB.forEach(e=>{ const o=mk("option"); o.value=e.n; dl.appendChild(o); }); document.body.appendChild(dl); })();
 
 render();
 </script>
