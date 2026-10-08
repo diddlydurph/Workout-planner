@@ -177,7 +177,7 @@ const PLAN = {
   Monday:    { type:"run", label:"Rest (office)",       color:"#4A9EBF", icon:"😴", muscles:"Morning mobility · Evening routine" },
   Tuesday:   { type:"gym", label:"Pull",                color:"#C0392B", icon:"💪", muscles:"Mid-back · Traps · Rear delts · Biceps · Intervals at lunch" },
   Wednesday: { type:"gym", label:"Push",                color:"#C0392B", icon:"💪", muscles:"Chest · Delts · Triceps" },
-  Thursday:  { type:"gym", label:"Legs + Home Core",    color:"#C0392B", icon:"🦵", muscles:"Quads · Hams · Glutes · Core · Forearms" },
+  Thursday:  { type:"gym", label:"Legs + Home Core",    color:"#C0392B", icon:"🦵", muscles:"Glutes · Quads · Hams · Core · Forearms" },
   Friday:    { type:"run", label:"Easy Run (optional)", color:"#4A9EBF", icon:"🏃", muscles:"5:45+/km · Office day" },
   Saturday:  { type:"gym", label:"Upper",               color:"#C0392B", icon:"💪", muscles:"After parkrun · Back · Chest · Delts · Arms" },
   Sunday:    { type:"gym", label:"Functional Lower",    color:"#7D3C98", icon:"🦵", muscles:"Glutes · Hams · Carries · Core · Slow run later" },
@@ -211,11 +211,12 @@ const DEFS = {
     { name:"Cross-Body Extension",        rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Single-Arm Pushdown"] },
   ],
   Thursday: [
-    { name:"Leg Press (feet high)",       rl:8,  rh:10, rpe:8, s:3, wj:6.8, rest:150, alts:["Hack Squat","Pendulum Squat"] },
+    { name:"Hip Thrust",                  rl:8,  rh:10, rpe:8, s:3, wj:5,   rest:120, alts:["Machine Hip Thrust","Smith Hip Thrust","DB Glute Bridge"], note:"Glute focus · upper back on the bench edge, chin tucked, ribs down · feet close enough that shins are vertical at the top · squeeze 1s, don't arch to finish" },
+    { name:"Leg Press (feet high)",       rl:8,  rh:10, rpe:8, s:3, wj:6.8, rest:150, alts:["Hack Squat","Pendulum Squat"], note:"Feet high and a little wide, push through the heels · lower back flat on the pad · stop just short of lockout" },
+    { name:"DB Split Squat (/side)",      rl:8,  rh:10, rpe:8, s:2, wj:2,   rest:90,  alts:["Smith Split Squat","Reverse Lunge"], note:"Glute bias · longer stride, slight forward lean, drive through the front heel · left side first" },
+    { name:"Hip Abduction",               rl:15, rh:20, rpe:9, s:3, wj:6.8, rest:60,  alts:["Cable Hip Abduction"], note:"Lean slightly forward off the backrest to bias the glutes · pause 1s at the widest point" },
     { name:"Seated Leg Curl",             rl:10, rh:12, rpe:9, s:4, wj:6.8, rest:90,  alts:["Lying Leg Curl","Single-Leg Curl"] },
-    { name:"DB Split Squat (/side)",      rl:8,  rh:10, rpe:8, s:2, wj:2,   rest:90,  alts:["Smith Split Squat","Reverse Lunge"] },
     { name:"Leg Extension",               rl:12, rh:15, rpe:9, s:3, wj:6.8, rest:60,  alts:["Single-Leg Extension"] },
-    { name:"Hip Abduction",               rl:15, rh:20, rpe:9, s:3, wj:6.8, rest:60,  alts:["Cable Hip Abduction"] },
     ...HOME,
   ],
   Saturday: [
@@ -229,7 +230,7 @@ const DEFS = {
   ],
   Sunday: [
     { name:"DB Step-Up (/side)",          rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:90,  alts:["Reverse Lunge","DB Split Squat (/side)"], note:"Glute focus · 20\" box · lean slightly forward, drive through the front heel, squeeze at the top · no push off the back foot, pelvis level · left first" },
-    { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:2, wj:6.8, rest:90,  alts:["Leg Press (feet high)"] },
+    { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:2, wj:6.8, rest:90,  alts:["Leg Press (feet high)"], note:"Glute focus · foot high and slightly out on the platform, push through the heel · knee tracks over the toes · stop just short of lockout" },
     { name:"Lying Leg Curl",              rl:10, rh:12, rpe:9, s:3, wj:6.8, rest:90,  alts:["Seated Leg Curl","Single-Leg Curl"] },
     { name:"Farmer's Carry (lengths)",    rl:2,  rh:4,  rpe:8, s:3, wj:0,   rest:90,  alts:["Farmer's Hold (sec)"], note:"25kg max in the carry area, so add lengths, not weight · then a 10s hold at the end" },
     { name:"Suitcase Carry (lengths/side)", rl:2, rh:4, rpe:7, s:2, wj:0,   rest:60,  alts:["Suitcase Hold (sec)"], note:"25kg max in the carry area, so add lengths, not weight · left side straight into right" },
@@ -243,6 +244,10 @@ const DEFS = {
 // Targets for alternatives that aren't a main exercise on any day.
 // Alternatives that are a main exercise elsewhere (e.g. Face Pull) use that day's targets.
 const ALTS = {
+  // Glutes
+  "Machine Hip Thrust":         { rl:8,  rh:10, rpe:8, wj:5,   rest:120 },
+  "Smith Hip Thrust":           { rl:8,  rh:10, rpe:8, wj:5,   rest:120 },
+  "DB Glute Bridge":            { rl:10, rh:12, rpe:8, wj:2,   rest:90  },
   // Back
   "CS T-Bar Row":               { rl:8,  rh:10, rpe:8, wj:2.5, rest:120 },
   "1-Arm DB Row (bench)":       { rl:8,  rh:10, rpe:8, wj:2,   rest:90  },
@@ -330,7 +335,6 @@ const MOB = [
     { n:"Side-lying open book", d:"8/side", x:"Back in once the shoulder is cleared (~13 Oct)", u:YT("side lying open book thoracic rotation") },
     { n:"90/90 hip switch", d:"10 switches", u:YT("90 90 hip switch") },
     { n:"Half-kneeling hip flexor", d:"30s/side", x:"Tuck the pelvis first, then shift forward", u:"https://www.youtube.com/shorts/WcF36BWCESI" },
-    { n:"Cross-body knee pull", d:"30s/side", x:"While the crest grumbles, then drop it", u:YT("supine cross body knee to opposite shoulder stretch") },
   ]},
   { t:"Upper warm-up", w:"Gym · Tue, Wed, Sat · ~8 min", items:[
     { n:"Bike, easy", d:"5 min", x:"RPE 3" },
@@ -340,11 +344,13 @@ const MOB = [
     { n:"LHB isometric hold", d:"3×45–60s", x:"Wed, or any day the shoulder grumbles · RPE 5–6 · 60s", u:"https://www.youtube.com/watch?v=LVpq6ww5m4c" },
     { n:"Ramp sets, first lift", d:"~50%×8, ~75%×5", x:"RPE 4–5 · 60s rest" },
   ]},
-  { t:"Lower warm-up", w:"Gym · Thu, Sun · ~8 min", items:[
+  { t:"Lower warm-up", w:"Gym · Thu, Sun · ~10 min · glutes switched on before anything heavy", items:[
     { n:"Bike, easy", d:"5 min", x:"RPE 3" },
-    { n:"Dowel hip hinge", d:"1×10", x:"Pattern only", u:YT("dowel hip hinge drill") },
+    { n:"Mini-band glute bridge", d:"1×12", x:"Band above the knees, push them out · 2s squeeze at the top", u:YT("mini band glute bridge form") },
+    { n:"1-leg glute bridge", d:"1×8/side", x:"Left first · 2s squeeze, hips level · RPE 5", u:YT("single leg glute bridge form") },
+    { n:"Banded clamshell", d:"1×12/side", x:"Hips stacked, don't roll back", u:YT("banded clamshell form") },
     { n:"Mini-band lateral walk", d:"2×10 steps each way", x:"RPE 5 · 30s rest", u:YT("mini band lateral walk form") },
-    { n:"1-leg glute bridge, LEFT only", d:"1×8", x:"2s squeeze at the top · RPE 5", u:YT("single leg glute bridge form") },
+    { n:"Dowel hip hinge", d:"1×10", x:"Pattern only", u:YT("dowel hip hinge drill") },
     { n:"Dead bug, arms crossed", d:"1×8/side", x:"Sets the pelvis before loading", u:YT("dead bug exercise arms crossed") },
     { n:"Knee-to-wall ankle mob", d:"5/side", x:"Leg press and split squat days", u:YT("knee to wall ankle mobilization") },
     { n:"Ramp sets, first lift", d:"~50%×8, ~75%×5", x:"RPE 4–5 · 60s rest" },
@@ -366,21 +372,21 @@ const MOB = [
     { n:"Towel breathing", d:"5 slow breaths", u:YT("towel breathing rib expansion") },
   ]},
   { t:"Evening routine", w:"Home · ~8 min · around 8:15pm", items:[
-    { n:"Figure-4 glute", d:"45s/side", x:"Reaches the crest via glute med", u:"https://www.rehabhero.ca/exercise/figure-4-stretch" },
-    { n:"Cross-body knee pull", d:"45s/side", x:"While the crest grumbles", u:YT("supine cross body knee to opposite shoulder stretch") },
+    { n:"Figure-4 glute", d:"45s/side", u:"https://www.rehabhero.ca/exercise/figure-4-stretch" },
     { n:"Supine hamstring, strap", d:"45s/side", x:"Knee soft", u:"https://library.theprehabguys.com/vimeo-video/supine-hamstring-stretch-strap/" },
     { n:"Soleus wall stretch, knee bent", d:"45s/side", u:YT("soleus wall stretch bent knee") },
     { n:"Foam roller T-spine extension", d:"8 slow reps", x:"Arms crossed on chest, no shoulder load", u:YT("foam roller thoracic extension arms crossed") },
     { n:"90/90 breathing, feet on sofa", d:"2×5 breaths", x:"Pelvis tucked", u:YT("90 90 breathing feet on couch") },
     { n:"No shoulder stretches yet", d:"", x:"No doorway pec, biceps, cross-body or sleeper stretches until the shoulder is cleared" },
   ]},
-  { t:"Session cues", w:"The rules that keep the shoulder and crest quiet", items:[
-    { n:"Pain rule", d:"≤3/10", x:"Nothing sharp at the front of the shoulder or the crest; next-morning stiffness no worse than usual" },
+  { t:"Session cues", w:"The rules that keep the shoulder quiet and the glutes working", items:[
+    { n:"Pain rule", d:"≤3/10", x:"Nothing sharp at the shoulder, crest or knee; next-morning stiffness no worse than usual" },
+    { n:"Lower days", d:"", x:"Glute work first: warm-up activation, then the glute lift before anything quad-heavy" },
     { n:"Presses", d:"", x:"Scap back, stop short of lockout, don't sink into the bottom stretch" },
     { n:"Flies", d:"", x:"Stop short of the deep stretch" },
     { n:"Curls", d:"", x:"Elbow in front of the body, never incline or behind" },
     { n:"Rows", d:"", x:"Elbows stop level with the torso" },
-    { n:"Leg press", d:"", x:"Lower back stays flat on the pad" },
+    { n:"Leg press", d:"", x:"Lower back stays flat on the pad, stop just short of lockout" },
     { n:"Split squats, step-ups", d:"", x:"Left side first" },
     { n:"Side plank, dead bug", d:"", x:"Side plank from the knees and dead bug arms crossed until cleared" },
   ]},
