@@ -381,8 +381,24 @@ function exNote(name) {
 }
 
 const YT = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+// Searches for names that otherwise find the wrong kit (e.g. "CS Row" finds dumbbells on a bench, not the machine)
+const VID_Q = {
+  "CS Row (elbows wide)":"chest supported machine row wide grip",
+  "CS T-Bar Row":"chest supported t-bar row machine",
+  "Neutral Lat Pulldown":"neutral grip lat pulldown",
+  "Hip Abduction":"seated hip abduction machine glutes",
+  "Cross-Body Extension":"cable cross body triceps extension",
+  "Single-Arm Pushdown":"single arm cable triceps pushdown",
+  "Bar Pushdown":"ez bar cable triceps pushdown",
+  "Cable Curl":"ez bar cable curl",
+  "Seated DB Lateral":"seated dumbbell lateral raise",
+  "Leg Press (feet high)":"leg press high foot placement glutes",
+  "Copenhagen (sec/side)":"copenhagen plank",
+  "Copenhagen (knee)":"short lever copenhagen plank knee",
+};
 // Form video for an exercise card: a YouTube search on the exercise name
 function exVideo(name) {
+  if (VID_Q[name.trim()]) return YT(VID_Q[name.trim()] + " form");
   const q = name.replace(/^Home:\s*/,"")
     .replace(/\s*\((\/side|sec|m|m\/side|sec\/side|lengths|lengths\/side)\)/g,"")
     .replace(/\bCS\b/g,"chest supported").replace(/\bDB\b/g,"dumbbell").replace(/\bKB\b/g,"kettlebell");
