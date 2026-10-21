@@ -73,6 +73,8 @@
   .vol-bar { height: 10px; background: #0F0F12; border-radius: 5px; overflow: hidden; }
   .vol-fill { height: 100%; background: #4A9EBF; border-radius: 5px; }
   .ex-note { font-size: 11px; color: #888; margin: -2px 0 8px 34px; }
+  .ex-aim { font-size: 11px; color: #C8A060; margin: -2px 0 6px 34px; line-height: 1.35; }
+  .ex-aim-feel { color: #9A8A6A; }
   .ex-setup { margin: -2px 0 8px 34px; }
   .setup-btn { display: block; width: 100%; text-align: left; background: none; border: 1px dashed #2A2A30; border-radius: 6px; color: #666; font-size: 12px; padding: 5px 8px; white-space: pre-wrap; word-break: break-word; }
   .setup-btn.setup-has { border: 1px solid #F0A50044; background: #F0A50012; color: #E8C27A; }
@@ -255,11 +257,11 @@ const HOME = [
 
 let DEFS = {
   Tuesday: [
-    { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["15° Lying DB Row (elbows wide)","CS T-Bar Row","1-Arm DB Row (bench)"] },
+    { name:"CS Row (elbows wide)",        rl:8,  rh:10, rpe:8, s:3, wj:2.5, rest:120, alts:["15° Lying DB Row (elbows wide)","CS T-Bar Row","1-Arm DB Row (bench)"], note:"Overhand handles (parallel to the floor), not the neutral ones · chest on the pad, pull to the lower chest with the elbows out · squeeze the shoulder blades, lower slowly" },
     { name:"Neutral Lat Pulldown",        rl:8,  rh:10, rpe:8, s:2, wj:6.8, rest:120, alts:["Single-Arm Cable Pulldown","Machine Lat Pulldown"] },
     { name:"1-Arm Cable Row",             rl:10, rh:12, rpe:8, s:2, wj:2.3, rest:90,  alts:["Seated Cable Row (wide)","Machine Row"] },
     { name:"DB Shrug",                    rl:10, rh:12, rpe:9, s:3, wj:2,   rest:90,  alts:["Cable Shrug","Machine Shrug","Smith Shrug"] },
-    { name:"Face Pull",                   rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Reverse Cable Fly","Reverse Pec Deck"] },
+    { name:"Face Pull",                   rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Reverse Cable Fly","Reverse Pec Deck"], note:"Rope at upper-chest to face height · lead with the elbows, high and wide · pull the rope apart to your forehead, hands by your ears · no shrug, no lean back" },
     { name:"DB Preacher Curl",            rl:10, rh:12, rpe:9, s:3, wj:1,   rest:60,  alts:["Machine Preacher Curl","EZ Preacher Curl"] },
     { name:"Hammer Curl",                 rl:10, rh:12, rpe:9, s:2, wj:2,   rest:60,  alts:["Rope Hammer Curl","Cross-Body Hammer Curl"] },
   ],
@@ -268,8 +270,8 @@ let DEFS = {
     { name:"15° Incline DB Press",        rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:120, alts:["Incline Machine Press","Low-Incline Smith Press"], note:"Palms facing each other (or turned in halfway) · elbows 30–45° from your sides, not flared · lower to the sides of the chest for a stretch, press up and slightly in" },
     { name:"Standing Mid Cable Fly",      rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:90,  alts:["Mid Cable Fly (bench)"] },
     { name:"Seated DB Lateral",           rl:12, rh:15, rpe:9, s:4, wj:1,   rest:60,  alts:["Cable Lateral Raise","Machine Lateral Raise"] },
-    { name:"Rope Pushdown",               rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Bar Pushdown","Single-Arm Pushdown"] },
-    { name:"Cross-Body Extension",        rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Single-Arm Pushdown"] },
+    { name:"Rope Pushdown",               rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Bar Pushdown","Single-Arm Pushdown"], note:"Elbows pinned, upper arms still · pull the rope apart and turn the hands out slightly at the bottom (that's the hands, not the shoulders) · full lockout, control back up" },
+    { name:"Cross-Body Extension",        rl:12, rh:15, rpe:9, s:2, wj:2.3, rest:60,  alts:["Single-Arm Pushdown"], note:"Upper arm raised in front and kept still, which stretches the long head · straighten the arm across the body, then let it bend fully back" },
   ],
   Thursday: [
     { name:"Hip Thrust",                  rl:8,  rh:10, rpe:8, s:3, wj:5,   rest:120, alts:["Machine Hip Thrust","Smith Hip Thrust","DB Glute Bridge"], note:"Glute focus · upper back on the bench edge, chin tucked, ribs down · feet close enough that shins are vertical at the top · squeeze 1s, don't arch to finish" },
@@ -404,6 +406,91 @@ function exVideo(name) {
     .replace(/\s*\((\/side|sec|m|m\/side|sec\/side|lengths|lengths\/side)\)/g,"")
     .replace(/\bCS\b/g,"chest supported").replace(/\bDB\b/g,"dumbbell").replace(/\bKB\b/g,"kettlebell");
   return YT(q + " form");
+}
+// ── Exercise aims: the muscle (or part of it) each exercise is for, and where to feel it ──
+// First match wins, so specific names come before general ones. [pattern, aim, where to feel it]
+const AIMS = [
+  // Exact exercises in the original plan (and ones talked through)
+  [/^cs row \(elbows wide\)$|^15° lying db row/, "Upper back and rear delts · row with the elbows 45–60° out", "Between your shoulder blades and in the back of your shoulders"],
+  [/^chest-supported machine row$|^machine row$/, "Upper back and lats · row with the elbows about 30–45° out", "Middle of your back, between the shoulder blades and down the sides"],
+  [/^leg press \(feet high\)$/, "Glutes and quads · feet high puts more on the glutes", "Glutes and the back of the thighs at the bottom, quads as you push"],
+  [/^1-leg leg press|^single-leg leg press/, "Glute of the working leg · one-leg press", "Glute and outer hip of the working leg"],
+  [/^15° incline db press$/, "Upper chest · low-incline press, palms in, elbows 30–45°", "Top of your chest under the collarbone, not the front of the shoulder"],
+  // Triceps (before chest and kickbacks)
+  [/overhead.*triceps|overhead.*extension|katana/, "Long head of the triceps · stretched with the arm overhead", "Back of the upper arm up near the armpit, with a big stretch at the bottom"],
+  [/cross-body extension/, "Triceps, with the long head on stretch · upper arm raised in front", "Back of the upper arm, with a stretch near the armpit when the arm is bent"],
+  [/skull crusher/, "Triceps, long head on a stretch · elbows still, bend to the forehead", "Back of the upper arm, stretched at the bottom"],
+  [/pushdown|pressdown/, "Outer and inner triceps heads · elbows pinned, straighten the arm", "Back and outside of the upper arm, squeezing at lockout"],
+  [/triceps kickback/, "Triceps at full lockout · upper arm still behind you", "Back of the upper arm, squeezing hard at lockout"],
+  [/bench dip|close-grip push-up/, "Triceps, with some chest · elbows back, not out", "Back of the upper arms, lower chest as you push"],
+  // Back
+  [/shrug/, "Upper traps · shoulders straight up to the ears", "Top of the shoulders beside the neck; pause at the top"],
+  [/face pull/, "Rear delts and upper back · pull to the forehead, elbows high and wide", "Back of your shoulders and between the shoulder blades"],
+  [/reverse pec deck|reverse cable fly|rear delt|reverse fly|pull-apart/, "Rear delts · sweep the arms out and back", "Back of the shoulders; don't pinch the shoulder blades hard"],
+  [/elbows-out|arm-out|row \(wide\)|pendlay|helms|meadows|t-bar|smith machine row|barbell row/, "Upper back and rear delts · row with the elbows out", "Between your shoulder blades and in the back of your shoulders"],
+  [/row/, "Lats and mid back · row with the elbow close to your side", "Side of your back below the armpit, then the shoulder blade squeezing back"],
+  [/wide-grip.*(pull-up|pulldown)/, "Upper lats and upper back · wide vertical pull", "Outer edge of your back under the armpits"],
+  [/single-arm.*pulldown/, "Lats · one arm, big stretch at the top", "Side of your back from the armpit down; drive the elbow to your hip"],
+  [/pull-?up|pulldown|chin-?up/, "Lats · pull the elbows down to your sides", "Sides of your back under the armpits; think elbows to your back pockets"],
+  [/pullover/, "Lats and chest · arms arc overhead", "Long stretch down the sides of your back and across the chest"],
+  // Shoulders
+  [/lateral raise|db lateral$/, "Side delts · raise out to the side", "Outside of the shoulder; lead with the elbows, stop at shoulder height"],
+  [/shoulder press|pike push-up/, "Front delts and triceps · press overhead", "Front and top of the shoulders"],
+  [/landmine press/, "Upper chest and front delt · angled one-arm press", "Upper chest and front of the shoulder"],
+  // Chest
+  [/low-to-high.*(crossover|fly)/, "Upper chest · sweep the hands up and together", "Top of the chest under the collarbones"],
+  [/fly|flye|pec deck|crossover/, "Chest · hug the arms together", "Stretch across the chest at the bottom, squeeze in the middle"],
+  [/^(?!.*curl).*incline|feet-elevated push-up/, "Upper chest · press on an incline", "Top of the chest under the collarbones, plus the front of the shoulders"],
+  [/bench press|chest press|floor press|hammer strength press|push-up/, "Chest · flat press", "Across the chest, with the triceps finishing the lockout"],
+  // Arms
+  [/reverse wrist curl/, "Forearm extensors · wrist back", "Top of the forearm"],
+  [/wrist curl/, "Forearm flexors · wrist curl", "Underside of the forearm"],
+  [/reverse curl/, "Brachioradialis and brachialis · palms-down curl", "Top of the forearm and outside of the upper arm"],
+  [/hammer/, "Brachialis and brachioradialis · palms-in curl", "Outside of the upper arm and top of the forearm"],
+  [/leg curl|ham curl|glute-ham/, "Hamstrings · bend the knee", "Back of the thighs; point the toes up and don't lift the hips"],
+  [/bayesian|stretch curl|incline.*curl/, "Biceps long head · curl with the arm behind you", "Front of the upper arm, with a big stretch at the bottom"],
+  [/preacher|concentration/, "Biceps, especially the stretched bottom half · upper arm fixed", "Lower biceps near the elbow at the bottom; keep the elbow down"],
+  [/curl/, "Biceps · elbows still, curl up", "Front of the upper arm; no swinging"],
+  // Glutes and hips
+  [/hip thrust|glute bridge|bridge/, "Glutes · drive the hips up", "Squeeze the glutes hard at the top, not your lower back or hamstrings"],
+  [/kickback/, "Glutes · kick the leg back, hips square", "Glute of the working leg, squeezing at the end"],
+  [/abduction|clamshell|lateral walk|band walk/, "Side and upper glutes (glute medius) · push the knees out", "Side and top of the hip"],
+  [/copenhagen/, "Inner thighs (adductors) and obliques · side plank on the top leg", "Inner thigh of the top leg and the side of your trunk"],
+  [/adduction/, "Inner thighs (adductors) · squeeze the legs together", "Inner thighs, with a stretch when open"],
+  [/pull-through/, "Glutes and hamstrings · hip hinge", "Glutes at the top, stretch in the hamstrings at the bottom"],
+  [/back extension|hyperextension/, "Glutes and hamstrings · hinge over the pad", "Glutes and the back of the thighs; squeeze the glutes at the top"],
+  [/trap bar deadlift/, "Glutes, quads and hamstrings · whole-body lift", "Legs and glutes driving the floor away, back stays flat"],
+  [/rdl|romanian|deadlift/, "Hamstrings and glutes · hip hinge", "Stretch down the back of the thighs, glutes at the top; flat back"],
+  // Legs
+  [/seated calf/, "Soleus (deep calf) · knees bent", "Lower calf; pause at the bottom stretch"],
+  [/calf/, "Calves · up on the toes, knees straight", "Calf muscles; pause at the bottom stretch"],
+  [/split squat|lunge|step-up/, "Front-leg glute and quads · single leg", "Glute and thigh of the front leg; lean slightly forward for more glute"],
+  [/sissy|reverse nordic/, "Quads, with a big stretch · knees forward", "Front of the thighs"],
+  [/leg extension/, "Quads · straighten the knee", "Front of the thighs; squeeze at the top"],
+  [/leg press|squat|hack|pendulum|wall sit/, "Quads and glutes · squat pattern", "Front of the thighs, glutes as you come up from the bottom"],
+  // Core and carries
+  [/pallof/, "Obliques and deep core · resist the twist", "Sides of your trunk; the arms stay still in front of your chest"],
+  [/dead bug/, "Deep abs · lower back stays pressed down", "Lower abs; the lower back never lifts off the floor"],
+  [/bird dog/, "Deep core and back · stay level", "Trunk and the glute of the lifted leg"],
+  [/side plank/, "Obliques · hips high", "Side of your trunk nearest the floor"],
+  [/reverse crunch|leg raise|knee raise|candlestick/, "Lower abs · curl the pelvis up", "Lower abs; roll the pelvis up rather than just lifting the legs"],
+  [/crunch/, "Upper abs · curl the ribs towards the pelvis", "Abs; round the spine, don't hinge at the hips"],
+  [/plank|rollout|ab wheel/, "Abs · brace against arching", "Abs working to stop the lower back sagging"],
+  [/suitcase/, "Obliques and grip · stay upright with weight on one side", "Side of your trunk opposite the weight"],
+  [/farmer/, "Grip, traps and core · walk tall", "Hands, forearms and upper traps; trunk braced"],
+];
+function exAim(name) {
+  const n=(name||"").replace(/^Home:\s*/,"").trim().toLowerCase();
+  if(!n) return null;
+  const m=AIMS.find(([re])=>re.test(n));
+  return m?{ aim:m[1], feel:m[2] }:null;
+}
+function aimEl(name) {
+  const a=exAim(name); if(!a) return null;
+  const d=mk("div","ex-aim");
+  d.appendChild(mkT("div","",`🎯 ${a.aim}`));
+  d.appendChild(mkT("div","ex-aim-feel",`Feel it: ${a.feel[0].toLowerCase()+a.feel.slice(1)}`));
+  return d;
 }
 const MOB = [
   { t:"Morning mobility", w:"Daily at home, first thing · ~8 min · moving, not held to strain", items:[
@@ -1502,7 +1589,10 @@ function renderGym(container, plan) {
     const vid=mkT("a","ex-vid","▶"); vid.target="_blank"; vid.rel="noopener"; vid.title="Form video";
     const setVid=()=>{ const n=nameInp.value.trim(); vid.href=n?progLink(n)||exVideo(n):""; vid.style.visibility=n?"visible":"hidden"; };
     setVid();
-    nameInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].name=nameInp.value); setVid(); });
+    // What the exercise is for, kept in step with the name as you type
+    const aimBox=mk("div"), setAim=()=>{ const a=aimEl(nameInp.value); aimBox.replaceChildren(...(a?[a]:[])); };
+    setAim();
+    nameInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].name=nameInp.value); setVid(); setAim(); });
     const rmBtn=mkT("button","ex-rm","✕");
     rmBtn.onclick=()=>{ mutLog(l=>l.exercises.splice(ei,1)); S.swapIdx=null; render(); };
     topRow.append(handle,nameInp,vid,rmBtn);
@@ -1511,6 +1601,7 @@ function renderGym(container, plan) {
     const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name));
     if(defEx&&defEx.prog) card.appendChild(progInfoEl(defEx));
     const tech=techOf(ex,defEx);
+    card.appendChild(aimBox);
     const note=exNote(ex.name);
     if(note) card.appendChild(mkT("div","ex-note",note));
     card.appendChild(setupNoteEl(ex.name,gym));
