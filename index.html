@@ -106,6 +106,7 @@
   .swap-opt-last { font-size: 11px; color: #888; margin-top: 2px; }
   .hint-src { font-size: 11px; color: #888; margin-top: 3px; }
   .ex-vid { color: #C0392B; font-size: 14px; text-decoration: none; padding: 6px 8px; border: 1px solid #2A2A30; border-radius: 7px; flex-shrink: 0; line-height: 1; }
+  .progress-link { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #18181C; border: 1px solid #3987e5; border-radius: 10px; padding: 13px 16px; color: #E8E6E1; font-size: 13px; font-weight: 600; text-decoration: none; margin-bottom: 12px; }
   .backup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
   .backup-btn { padding: 11px; border-radius: 10px; background: #1E1E24; border: 1px solid #2A2A30; color: #C8C6C0; font-size: 13px; font-weight: 600; }
   .backup-note { font-size: 11px; color: #666; margin-bottom: 16px; text-align: center; }
@@ -1931,8 +1932,8 @@ function renderRuns(app){
 }
 
 // ── Backup: every logged week in one JSON file ───────────────────────────────
-// Personal plan, setup answers, food details and any training program travel with the logs
-const EXTRA_KEYS=["plan","me","nutrition","program","techs"];
+// Personal plan, setup answers, food details, weigh-ins and any training program travel with the logs
+const EXTRA_KEYS=["plan","me","nutrition","program","techs","bodyweight","bwPrefs"];
 function exportBackup() {
   const data={};
   sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
@@ -1967,12 +1968,12 @@ function importBackup(file) {
       if(b&&Array.isArray(b.runs)){ RUNS=null; setRuns(b); render(); alert(`Loaded ${b.runs.length} Strava runs.`); return; }
       alert("No workout weeks found in that file."); return;
     }
-    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`,extra.includes("plan")&&"your plan",extra.includes("program")&&"your training program"].filter(Boolean).join(" and ")||"your details";
+    const what=[keys.length&&`${keys.length} week${keys.length>1?"s":""}`,nSetup&&`${nSetup} setup note${nSetup>1?"s":""}`,extra.includes("plan")&&"your plan",extra.includes("program")&&"your training program",extra.includes("bodyweight")&&"your weigh-ins"].filter(Boolean).join(" and ")||"your details";
     const when=b.exported?` from ${new Date(b.exported).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`:"";
     if(!confirm(`Restore ${what}${when}?\n\nWeeks and setup notes in the backup replace the same ones on this device. Everything else is kept.`)) return;
     keys.forEach(k=>sSet(k,data[k]));
     if(nSetup) sSet(SETUP_KEY,{...(sGet(SETUP_KEY)||{}),...setup});
-    extra.forEach(k=>sSet(k,data[k]));
+    extra.forEach(k=>sSet(k,k==="bodyweight"?{...(sGet(k)||{}),...data[k]}:data[k])); // weigh-ins merge by date
     if(extra.includes("plan")){ MYSETUP=sGet("me")||MYSETUP; applyPlan(sGet("plan")); }
     if(extra.includes("program")){ PROG=sGet("program"); progRefresh(); }
     S.logs=sGet(`logs:${WK}`)||{};
@@ -2023,6 +2024,9 @@ function renderHistory(app){
     });
     return;
   }
+  const pg=mk("a","progress-link"); pg.href="progress.html";
+  pg.append(mkT("span","","📈 Progress: weigh-ins, lifts over time, weekly review"),mkT("span","","→"));
+  content.appendChild(pg);
   const br=mk("div","backup-row");
   const exp=mkT("button","backup-btn","⤓ Export backup"); exp.onclick=exportBackup;
   const imp=mkT("button","backup-btn","⤒ Import backup");
