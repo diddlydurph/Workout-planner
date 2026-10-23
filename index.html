@@ -240,7 +240,7 @@ let PLAN = {
   Thursday:  { type:"gym", label:"Legs + Home Core",    color:"#C0392B", icon:"🦵", muscles:"Glutes · Quads · Hams · Core · Forearms" },
   Friday:    { type:"run", label:"Easy Run (optional)", color:"#4A9EBF", icon:"🏃", muscles:"5:45+/km · Office day" },
   Saturday:  { type:"gym", label:"Upper",               color:"#C0392B", icon:"💪", muscles:"After parkrun · Back · Chest · Delts · Arms" },
-  Sunday:    { type:"gym", label:"Functional Lower",    color:"#7D3C98", icon:"🦵", muscles:"Glutes · Hams · Carries · Core · Slow run later" },
+  Sunday:    { type:"gym", label:"Hips + Legs",         color:"#7D3C98", icon:"🦵", muscles:"Hip strength · Glutes · Quads · Hams · Calves · Slow run later" },
 };
 
 // Gyms: weights and kit differ, so history and hints are kept per gym
@@ -293,15 +293,18 @@ let DEFS = {
     { name:"Bar Pushdown",                rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Rope Pushdown","Reverse-Grip Pushdown"], note:"EZ bar attachment" },
   ],
   Sunday: [
+    // Hip block first (~10 min): end-range hip strength for the crest and knees, then the growth work
+    { name:"Copenhagen (sec/side)",       rl:30, rh:45, rpe:7, s:2, wj:0,   rest:45,  alts:["Copenhagen (knee)","Hip Adduction"], note:"Right side first, then match the time on the left · from the knee until it's easy, then the full version · Hip Adduction machine while the right shoulder can't take your weight" },
+    { name:"Hip Airplane (/side)",        rl:5,  rh:6,  rpe:6, s:2, wj:0,   rest:45,  alts:["90/90 Hip Switch"], note:"Hold a rack with your left hand · stand on one leg, hinge until your chest is near level · slowly turn the pelvis open to the side, then back closed · hips stay high, standing knee soft" },
+    { name:"90/90 Hip Lift-Off (/side)",  rl:5,  rh:8,  rpe:7, s:2, wj:0,   rest:45,  alts:["90/90 Hip Switch"], note:"Sit tall in 90/90 · lift the back knee and foot an inch off the floor, hold 2s, lower slowly · lean back on your hands if needed · strength at the end of the hip's rotation" },
     { name:"DB Step-Up (/side)",          rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:90,  alts:["Reverse Lunge","DB Split Squat (/side)"], note:"Glute focus · 20\" box · lean slightly forward, drive through the front heel, squeeze at the top · no push off the back foot, pelvis level · left first" },
-    { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:2, wj:6.8, rest:90,  alts:["Leg Press (feet high)"], note:"Glute focus · foot high and slightly out on the platform, push through the heel · knee tracks over the toes · stop just short of lockout" },
+    { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:3, wj:6.8, rest:90,  alts:["Leg Press (feet high)"], note:"Glute focus · foot high and slightly out on the platform, push through the heel · knee tracks over the toes · stop just short of lockout" },
     { name:"Lying Leg Curl",              rl:10, rh:12, rpe:9, s:3, wj:6.8, rest:90,  alts:["Seated Leg Curl","Single-Leg Curl"] },
-    { name:"Farmer's Carry (lengths)",    rl:2,  rh:4,  rpe:8, s:3, wj:0,   rest:90,  alts:["Farmer's Hold (sec)"], note:"25kg max in the carry area, so add lengths, not weight · then a 10s hold at the end" },
-    { name:"Suitcase Carry (lengths/side)", rl:2, rh:4, rpe:7, s:2, wj:0,   rest:60,  alts:["Suitcase Hold (sec)"], note:"25kg max in the carry area, so add lengths, not weight · left side straight into right" },
-    { name:"Cable Pallof (/side)",        rl:10, rh:12, rpe:8, s:3, wj:2.3, rest:60,  alts:["Band Pallof"] },
-    { name:"Cable Crunch",                rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Crunch"] },
-    { name:"Copenhagen (sec/side)",       rl:30, rh:45, rpe:7, s:2, wj:0,   rest:45,  alts:["Side Plank (sec)"] },
+    { name:"Leg Extension",               rl:12, rh:15, rpe:9, s:3, wj:6.8, rest:60,  alts:["Single-Leg Extension"] },
     { name:"Calf Raise",                  rl:10, rh:15, rpe:9, s:3, wj:5,   rest:60,  alts:["Seated Calf Raise","Leg Press Calf Raise"] },
+    // If there's time
+    { name:"Farmer's Carry (lengths)",    rl:2,  rh:4,  rpe:8, s:3, wj:0,   rest:90,  alts:["Farmer's Hold (sec)"], note:"If there's time · 25kg max in the carry area, so add lengths, not weight · then a 10s hold at the end" },
+    { name:"Cable Crunch",                rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Crunch"], note:"If there's time" },
   ],
 };
 
@@ -355,6 +358,8 @@ let ALTS = {
   "Half-Kneeling Band Pallof":  { rl:10, rh:12, rpe:7, wj:0,   rest:45  },
   "Knee Side Plank (sec)":      { rl:30, rh:45, rpe:7, wj:0,   rest:45  },
   "Copenhagen (knee)":          { rl:20, rh:30, rpe:7, wj:0,   rest:45  },
+  "Hip Adduction":              { rl:12, rh:15, rpe:8, wj:6.8, rest:60  },
+  "90/90 Hip Switch":           { rl:8,  rh:10, rpe:6, wj:0,   rest:45  },
   "Band Pallof":                { rl:10, rh:12, rpe:8, wj:0,   rest:60  },
   "Machine Crunch":             { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
   "Side Plank (sec)":           { rl:30, rh:45, rpe:7, wj:0,   rest:45  },
@@ -400,6 +405,9 @@ const VID_Q = {
   "Leg Press (feet high)":"leg press high foot placement glutes",
   "Copenhagen (sec/side)":"copenhagen plank",
   "Copenhagen (knee)":"short lever copenhagen plank knee",
+  "Hip Airplane (/side)":"hip airplane exercise assisted",
+  "90/90 Hip Lift-Off (/side)":"90 90 hip lift off",
+  "Hip Adduction":"seated hip adduction machine",
 };
 // Form video for an exercise card: a YouTube search on the exercise name
 function exVideo(name) {
@@ -457,6 +465,8 @@ const AIMS = [
   [/hip thrust|glute bridge|bridge/, "Glutes · drive the hips up", "Squeeze the glutes hard at the top, not your lower back or hamstrings"],
   [/kickback/, "Glutes · kick the leg back, hips square", "Glute of the working leg, squeezing at the end"],
   [/abduction|clamshell|lateral walk|band walk/, "Side and upper glutes (glute medius) · push the knees out", "Side and top of the hip"],
+  [/airplane/, "Glute med and deep hip rotators · turn the pelvis on one leg", "Side of the standing hip; keep it steady and slow"],
+  [/90\/90/, "Hip rotators at end range · lift the leg from the floor", "Deep in the hip and the side of the glute of the lifting leg"],
   [/copenhagen/, "Inner thighs (adductors) and obliques · side plank on the top leg", "Inner thigh of the top leg and the side of your trunk"],
   [/adduction/, "Inner thighs (adductors) · squeeze the legs together", "Inner thighs, with a stretch when open"],
   [/pull-through/, "Glutes and hamstrings · hip hinge", "Glutes at the top, stretch in the hamstrings at the bottom"],
