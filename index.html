@@ -205,9 +205,19 @@
   .add-row .add-set-btn { flex: 1; margin-top: 0; }
   .tech-sel { background: none; border: 1px dashed #2A2A30; border-radius: 6px; color: #666; font-size: 12px; padding: 0 6px; max-width: 50%; }
   .tech-sel.on { color: #B088D0; border: 1px solid #B088D055; }
-  .tech-box { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -1px 0 6px 33px; font-size: 11px; color: #B088D0; }
-  .tech-box .tech-inp { width: 46px; padding: 5px 4px; font-size: 12px; }
-  .tech-go { font-size: 11px; color: #B088D0; background: none; border: 1px solid #B088D055; border-radius: 5px; padding: 4px 9px; font-weight: 600; }
+  .fin-cap { font-size: 11px; color: #B088D0; margin: 0 0 6px 33px; }
+  .fin-row .set-num { color: #B088D0; font-size: 11px; }
+  .fin-w { font-size: 11px; color: #666; text-align: center; }
+  .fin-go { grid-column: 2 / 4; font-size: 12px; color: #B088D0; background: none; border: 1px solid #B088D055; border-radius: 6px; padding: 7px; font-weight: 600; }
+  .ss-btn, .help-btn { background: none; border: 1px dashed #2A2A30; border-radius: 6px; color: #666; font-size: 13px; padding: 0 10px; flex-shrink: 0; }
+  .ss-btn.on { color: #4A9EBF; border: 1px solid #4A9EBF55; }
+  .help-btn.on { color: #E8E6E1; border: 1px solid #555; }
+  .ex-card.ss { border-left: 3px solid #4A9EBF; }
+  .ex-card.ss-link { margin-bottom: 4px; }
+  .ss-tag { font-size: 11px; font-weight: 700; color: #4A9EBF; margin: 2px 0 6px; }
+  .tech-help { margin-top: 8px; background: #0F0F12; border: 1px solid #2A2A30; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #BBB; line-height: 1.45; }
+  .tech-help b { color: #E8E6E1; display: block; margin-top: 10px; }
+  .tech-help b:first-child { margin-top: 0; }
   .prog-info { font-size: 11px; color: #B088D0; margin: -2px 0 8px 34px; }
   .prog-info summary { cursor: pointer; }
   .prog-info div { color: #888; margin-top: 4px; line-height: 1.4; white-space: pre-line; }
@@ -1087,7 +1097,10 @@ function lastDone(name, gym) {
 function lastLabel(last) { return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)}`; }
 function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}${extraTxt(s)}`).join(", "); }
 // Lengthened partials and myo-rep mini-sets done after a set
-function extraTxt(s) { const m=(s.myo||[]).filter(Boolean); return (s.p?` +${s.p}p`:"")+(m.length?` +${m.join("+")} myo`:""); }
+function extraTxt(s) {
+  const m=(s.myo||[]).filter(Boolean), d=(s.drops||[]).filter(x=>x.r);
+  return (s.p?` +${s.p}p`:"")+(m.length?` +${m.join("+")} myo`:"")+d.map(x=>` ↓${x.w?x.w+"kg":""}×${x.r}`).join("");
+}
 
 function repsCol(r,rl,rh){
   if(!r||!rl) return "#E8E6E1";
@@ -1603,8 +1616,16 @@ function renderGym(container, plan) {
   if(plan.prog) container.appendChild(progWarmupEl());
   else if(MYPLAN) container.appendChild(warmupEl(S.day));
 
+  // Supersets: a run of exercises linked with 🔗 is one group, labelled A1, A2, then B1...
+  const ssTag=[];
+  for(let i=0,g=0,xs=log.exercises;i<xs.length;){
+    let j=i; while(xs[j].ss&&j+1<xs.length) j++;
+    if(j>i){ const L=String.fromCharCode(65+g++); for(let k=i;k<=j;k++) ssTag[k]={ tag:L+(k-i+1), last:k===j, next:(xs[k+1]||{}).name, first:xs[i].name }; }
+    i=j+1;
+  }
   log.exercises.forEach((ex,ei)=>{
-    const card=mk("div","ex-card");
+    const ss=ssTag[ei];
+    const card=mk("div","ex-card"+(ss?" ss"+(ss.last?"":" ss-link"):""));
 
     // Top row: drag handle | name | video | delete
     const topRow=mk("div","ex-top-row");
@@ -1622,6 +1643,8 @@ function renderGym(container, plan) {
     rmBtn.onclick=()=>{ mutLog(l=>l.exercises.splice(ei,1)); S.swapIdx=null; render(); };
     topRow.append(handle,nameInp,vid,rmBtn);
     card.appendChild(topRow);
+    if(ss) card.appendChild(mkT("div","ss-tag",ss.last?`🔗 ${ss.tag} · superset: rest after this, then back to ${ss.first||"the first one"}`
+      :`🔗 ${ss.tag} · superset: no rest, straight on to ${ss.next||"the next exercise"}`));
     // Program sessions: this week's last-set technique, effort and warm-up sets
     const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name));
     if(defEx&&defEx.prog) card.appendChild(progInfoEl(defEx));
@@ -1761,7 +1784,7 @@ function renderGym(container, plan) {
       const rm=mkT("button","set-rm","✕");
       rm.onclick=()=>{ mutLog(l=>l.exercises[ei].sets.splice(si,1)); render(); };
       row.append(wi,ri,rpei,rm); card.appendChild(row);
-      if(si===ex.sets.length-1){ const tb=techBoxEl(ex,ei,si,tech); if(tb) card.appendChild(tb); }
+      if(si===ex.sets.length-1){ const f=finEl(ex,ei,si,tech); if(f) card.appendChild(f); }
     });
 
     const addRow=mk("div","add-row");
@@ -1776,7 +1799,18 @@ function renderGym(container, plan) {
       if(!(defEx&&defEx.prog)&&(ex.name||"").trim()){ const m=sGet("techs")||{}; if(v) m[ex.name.trim()]=v; else delete m[ex.name.trim()]; sSet("techs",m); }
       render();
     };
-    addRow.append(addSet,ts); card.appendChild(addRow);
+    addRow.append(addSet,ts);
+    // Superset with the exercise below, and help on how supersets and the finishers work
+    if(ex.ss||ei<log.exercises.length-1){
+      const sb=mkT("button","ss-btn"+(ex.ss?" on":""),"🔗"); sb.title=ex.ss?"Unlink from the next exercise":"Superset with the next exercise";
+      sb.onclick=()=>{ mutLog(l=>{ const e=l.exercises[ei]; if(e.ss) delete e.ss; else e.ss=true; }); render(); };
+      addRow.appendChild(sb);
+    }
+    const hb=mkT("button","help-btn"+(S.help===ei?" on":""),"ⓘ"); hb.title="How supersets, drop sets and myo-reps work";
+    hb.onclick=()=>{ S.help=S.help===ei?null:ei; render(); };
+    addRow.appendChild(hb);
+    card.appendChild(addRow);
+    if(S.help===ei) card.appendChild(techHelpEl());
 
     // Set up drag after card is built
     setupDrag(handle, card, ei);
@@ -2413,7 +2447,7 @@ function renderRest(container) {
 }
 
 // ── Time estimates: rough minutes for a session from its sets, reps, rest and techniques ──
-const TECH_SECS={ "Myo-reps":90, "Failure + LLPs (Extend set)":20, "Static Stretch (30s)":30 };
+const TECH_SECS={ "Myo-reps":90, "Failure + LLPs (Extend set)":20, "Static Stretch (30s)":30, "Drop set":60 };
 function rangeMid(s) { const m=String(s||"").match(/(\d+)(?:\s*[-–]\s*(\d+))?/); return m?(+m[1]+ +(m[2]||m[1]))/2:0; }
 // One exercise: warm-up sets (a minute each), working sets, rest between them, and 90s to move on to the next
 function exSecs(e, done=0) {
@@ -2428,9 +2462,9 @@ function dayDef(day, name) { return (DEFS[day]||[]).find(d=>d.name===name||(d.al
 // "Home:" exercises are done at home, so they're counted separately from the gym time
 function sessionSecs(day, log) {
   let t=0, home=0, started=false;
-  (log.exercises||[]).forEach(ex=>{
+  (log.exercises||[]).forEach((ex,i,xs)=>{
     const def=dayDef(day,ex.name), sets=ex.sets||[], done=sets.filter(s=>s.r).length;
-    const x=exSecs({ n:sets.length, rl:ex.rl, rh:ex.rh, rest:ex.rest, wu:def&&def.prog?rangeMid(def.wu):0, tech:techOf(ex,def) }, done);
+    const x=exSecs({ n:sets.length, rl:ex.rl, rh:ex.rh, rest:ex.ss&&xs[i+1]?15:ex.rest, wu:def&&def.prog?rangeMid(def.wu):0, tech:techOf(ex,def) }, done);
     if(/^home:/i.test(ex.name||"")) home+=x; else { t+=x; if(done) started=true; }
   });
   return { secs:started?t:t+warmSecs(day), home, started };
@@ -2448,58 +2482,117 @@ function updEta() { const el=document.getElementById("sess-time"); if(el) el.tex
 
 // ── Rest after a set: once per set, and none after the last set of the session ──
 const restDone=new Set();
-const setKey=(ei,si)=>`${WK}|${S.day}|${ei}|${si}`;
+const setKey=(ei,si,f="")=>`${WK}|${S.day}|${ei}|${((getLog().exercises||[])[ei]||{}).name}|${si}${f}`;
+// The normal rest before the next set. None when this exercise is supersetted with the next one (go straight to it),
+// or when nothing's left in the session (gym and home exercises count separately)
+function restNext(l, ei) {
+  const ex=l.exercises[ei];
+  if(ex.ss&&l.exercises[ei+1]) return;
+  const home=/^Home:/i.test(ex.name||"");
+  const left=l.exercises.some(e=>/^Home:/i.test(e.name||"")===home&&(e.sets||[]).some(x=>!String(x.r||"").trim()));
+  if(left) startRest(ex.name, ex.rest||90);
+}
 function restAfterSet(ei, si) {
   const l=getLog(), ex=(l.exercises||[])[ei]; if(!ex||!ex.sets[si]||!String(ex.sets[si].r||"").trim()) return;
   const k=setKey(ei,si); if(restDone.has(k)) return; restDone.add(k);
-  const def=(DEFS[S.day]||[]).find(d=>d.name===ex.name||(d.alts||[]).includes(ex.name));
-  const t=techOf(ex,def), last=si===ex.sets.length-1;
+  const t=techOf(ex,dayDef(S.day,ex.name)), last=si===ex.sets.length-1;
   // After the last set, myo-reps and the stretch get their own short timers instead of the full rest
   if(last&&t==="Myo-reps") return startRest(`${ex.name} · myo-rep rest`,15);
   if(last&&t==="Static Stretch (30s)") return startRest(`${ex.name} · hold the stretch`,30);
-  // Nothing left to do in this session (gym and home exercises count separately): no rest needed
-  const home=/^Home:/i.test(ex.name||"");
-  const left=l.exercises.some(e=>/^Home:/i.test(e.name||"")===home&&(e.sets||[]).some(x=>!String(x.r||"").trim()));
-  if(!left) return;
-  startRest(ex.name, ex.rest||90);
+  if(last&&(t==="Drop set"||t==="Failure + LLPs (Extend set)")) return; // straight on to the drops or partials
+  restNext(l, ei);
+}
+// A finisher line logged: another myo-rep mini-set gets the short rest; after drops and partials, the normal rest
+function restAfterFin(ei, tag) {
+  const l=getLog(), ex=(l.exercises||[])[ei]; if(!ex) return;
+  const k=setKey(ei,ex.sets.length-1,"|"+tag); if(restDone.has(k)) return; restDone.add(k);
+  if(techOf(ex,dayDef(S.day,ex.name))==="Myo-reps") return startRest(`${ex.name} · myo-rep rest`,15);
+  restNext(l, ei);
 }
 
 // ── Last-set techniques: myo-reps, lengthened partials and a stretch, logged on the last set ──
-const TECH_OPTS=[["","Normal last set"],["Failure","To failure"],["Failure + LLPs (Extend set)","+ Partials"],["Myo-reps","Myo-reps"],["Static Stretch (30s)","+ 30s stretch"]];
-// Today's choice, else the program's, else the one you picked for this exercise before
+const TECH_OPTS=[["","Normal last set"],["Failure + LLPs (Extend set)","+ Partials"],["Myo-reps","+ Myo-reps"],["Drop set","+ Drop sets"],["Static Stretch (30s)","+ 30s stretch"]];
+// Today's choice, else the program's, else the one you picked for this exercise before.
+// "To failure" is just RPE 10 on the last set, so it counts as a normal last set.
 function techOf(ex, def) {
-  if(ex.tech!=null) return ex.tech;
-  if(def&&def.prog) return def.tech||"";
-  return (sGet("techs")||{})[(ex.name||"").trim()]||"";
+  const t=ex.tech!=null?ex.tech:def&&def.prog?def.tech||"":(sGet("techs")||{})[(ex.name||"").trim()]||"";
+  return t==="Failure"?"":t;
 }
-function techBoxEl(ex, ei, si, tech) {
-  const set=ex.sets[si], box=mk("div","tech-box");
-  const inp=(val,ph)=>{ const i=mk("input","set-inp tech-inp"); i.type="number"; i.inputMode="numeric"; i.placeholder=ph; i.value=val||""; return i; };
-  if(tech==="Failure + LLPs (Extend set)"){
-    box.appendChild(mkT("span","","Then partials in the stretched half:"));
-    const i=inp(set.p,"reps");
+// Finishers after the last set: partials, each myo-rep mini-set and each drop get a line of their own
+const FIN_CAP={
+  "Failure + LLPs (Extend set)":"Then half reps in the stretched part, same weight, no rest",
+  "Myo-reps":"Mini-sets with the same weight, 3–5 breaths (about 15s) apart",
+  "Drop set":"Drop about 20–25% and go again straight away",
+  "Static Stretch (30s)":"Then hold the stretched position",
+};
+function finEl(ex, ei, si, tech) {
+  if(!FIN_CAP[tech]) return null;
+  const set=ex.sets[si], wrap=mk("div","fin");
+  wrap.appendChild(mkT("div","fin-cap",FIN_CAP[tech]));
+  const num=(ph,val,k)=>{ const i=mk("input","set-inp"); i.type="number"; i.inputMode="decimal"; i.placeholder=ph; i.value=val||""; i.dataset.k=k; return i; };
+  const row=(lbl,...cells)=>{ const r=mk("div","set-row fin-row"); r.append(mkT("div","set-num",lbl),...cells); wrap.appendChild(r); return r; };
+  const rows=()=>wrap.querySelectorAll(".fin-row").length;
+  // Reps logged on a line start the rest 2s later, like the sets
+  const rest=(i,tag)=>{
+    i.addEventListener("input",()=>{ clearTimeout(i._rest); if(i.value) i._rest=setTimeout(()=>restAfterFin(ei,tag),2000); else restDone.delete(setKey(ei,si,"|"+tag)); });
+    i.addEventListener("blur",()=>{ clearTimeout(i._rest); if(i.value) restAfterFin(ei,tag); });
+  };
+  if(tech==="Static Stretch (30s)"){
+    const b=mkT("button","fin-go","▶ Hold 30s"); b.onclick=()=>startRest(`${ex.name} · hold the stretch`,30);
+    row("S",b);
+  } else if(tech==="Failure + LLPs (Extend set)"){
+    const i=num("reps",set.p,`p:${ei}`);
     i.addEventListener("input",()=>mutLog(l=>{ const s=l.exercises[ei].sets[si]; if(i.value) s.p=i.value; else delete s.p; }));
-    box.appendChild(i);
+    rest(i,"p"); row("P",mkT("div","fin-w","same kg"),i,mk("div"),mk("div"));
   } else if(tech==="Myo-reps"){
-    const lb=mkT("span","","Mini-sets, 3–5 breaths (about 15s) apart:"); lb.style.flexBasis="100%"; box.appendChild(lb);
     const vals=[...(set.myo||[])];
     const add=k=>{
-      const i=inp(vals[k],"+");
+      const i=num("reps",vals[k],`m:${ei}:${k}`);
       i.addEventListener("input",()=>{
         vals[k]=i.value;
         mutLog(l=>{ const s=l.exercises[ei].sets[si], m=[...vals]; while(m.length&&!m[m.length-1]) m.pop(); if(m.length) s.myo=m; else delete s.myo; });
-        if(i.value&&k===box.querySelectorAll(".tech-inp").length-1&&k<4) add(k+1);
+        if(i.value&&k===rows()-1&&k<4) add(k+1);
       });
-      i.addEventListener("blur",()=>{ if(i.value) startRest(`${ex.name} · myo-rep rest`,15); });
-      box.appendChild(i);
+      rest(i,"m"+k); row(`M${k+1}`,mkT("div","fin-w","same kg"),i,mk("div"),mk("div"));
     };
     for(let k=0;k<Math.min(5,vals.length+1);k++) add(k);
-  } else if(tech==="Static Stretch (30s)"){
-    box.appendChild(mkT("span","","Then hold the stretched position"));
-    const b=mkT("button","tech-go","▶ 30s"); b.onclick=()=>startRest(`${ex.name} · hold the stretch`,30);
-    box.appendChild(b);
-  } else return null;
-  return box;
+  } else if(tech==="Drop set"){
+    const vals=(set.drops||[]).map(d=>({...d}));
+    const save=()=>mutLog(l=>{ const s=l.exercises[ei].sets[si], d=vals.filter(x=>x&&(x.w||x.r)); if(d.length) s.drops=d; else delete s.drops; });
+    const add=k=>{
+      vals[k]=vals[k]||{w:"",r:""};
+      // Suggest about 20–25% less than the line before, in whole weight steps so it lands on the stack or rack
+      const sug=()=>{ const w=parseFloat(k?vals[k-1].w:((getLog().exercises[ei]||{}).sets||[])[si]?.w), st=+ex.wj||2.5;
+        return w?String(Math.max(0,+(w-Math.max(1,Math.round(w*0.22/st))*st).toFixed(1))):"kg"; };
+      const wi=num(sug(),vals[k].w,`dw:${ei}:${k}`), ri=num("reps",vals[k].r,`dr:${ei}:${k}`);
+      wi.addEventListener("focus",()=>{ if(!wi.value) wi.placeholder=sug(); });
+      wi.addEventListener("input",()=>{ vals[k].w=wi.value; save(); });
+      ri.addEventListener("input",()=>{
+        // Reps without a weight: take the suggested drop
+        if(ri.value&&!vals[k].w&&sug()!=="kg"){ vals[k].w=wi.value=sug(); }
+        vals[k].r=ri.value; save();
+        if(ri.value&&k===rows()-1&&k<2) add(k+1);
+      });
+      rest(ri,"d"+k); row(`D${k+1}`,wi,ri,mk("div"),mk("div"));
+    };
+    const n=vals.length?vals.length+(vals[vals.length-1].r&&vals.length<3?1:0):1;
+    for(let k=0;k<n;k++) add(k);
+  }
+  return wrap;
+}
+
+// How supersets, drop sets, myo-reps and the other finishers work (ⓘ on each exercise)
+const TECH_HELP=[
+  ["🔗 Supersets","Two exercises back to back: a set of A1, straight on to a set of A2, then rest and repeat. The timer stays off after A1 and runs after A2. Pair exercises that don't tire each other: opposite muscles (curls with pushdowns, a press with a row) or different areas (lateral raises with calves). Don't superset your main heavy lift or two exercises for the same muscle. Tap 🔗 on an exercise to link it to the one below; drag the cards to pair different ones."],
+  ["⬇ Drop sets","After your last set, drop the weight about 20–25% straight away (just change the pin or grab lighter dumbbells) and do as many good reps as you can. One or two drops. Best on machines and cables where the weight changes fast, not on squats or deadlifts. They're tiring, so use them on the last set of one or two exercises a session. Each drop gets its own D line; the app suggests the lighter weight, and the rest timer runs after the last drop."],
+  ["🔁 Myo-reps","Take your last set close to failure (RPE 9–10). Rest for 3–5 deep breaths, about 15 seconds, then do a mini-set with the same weight, usually 3–5 reps. Repeat until the reps drop off: stop when you can't get 3, or after 4 or 5 mini-sets. Every mini-set rep is a hard one, so you get a lot of growth work in little time. Best on machines, cables and isolation moves. Each mini-set gets its own M line, and the 15s timer starts on its own."],
+  ["½ Partials","After the last set, keep going with half reps in the stretched part of the movement (the bottom of a leg press or a curl, for example) until you can't move it. Log them on the P line."],
+  ["⏸ 30s stretch","After the last set, hold the stretched position (the bottom of a calf raise, for example) for 30 seconds. Tap ▶ to time it."],
+];
+function techHelpEl() {
+  const h=mk("div","tech-help");
+  TECH_HELP.forEach(([t,x])=>h.append(mkT("b","",t),mkT("div","",x)));
+  return h;
 }
 
 // ── Training program screens ──────────────────────────────────────────────────
@@ -2509,6 +2602,7 @@ const TECH={
   "Failure + LLPs (Extend set)":"Take the last set to failure, then keep going with lengthened partials: part reps in the stretched half of the movement, until you can't move it.",
   "Myo-reps":"Take the last set to failure, rest for 3–5 deep breaths, then do as many reps as you can again. Repeat for a couple of short mini-sets.",
   "Static Stretch (30s)":"After the last set to failure, hold the stretched position (for example the bottom of a calf raise) for 30 seconds.",
+  "Drop set":"After the last set, drop the weight about 20–25% and go again straight away. One or two drops.",
 };
 function loadProgram(b) {
   const n=b.weeks.length, per=b.weeks[0].sessions&&b.weeks[0].sessions.length;
@@ -2532,7 +2626,7 @@ function progBar() {
 function progInfoEl(d) {
   const det=mk("details","prog-info");
   const wu=d.wu&&lastNum(d.wu);
-  const bits=[d.extra&&"Glutes first", d.tech?`Last set: ${d.tech}`:`Last set RPE ${d.rpe}`, d.early&&`early sets RPE ${d.early}`,
+  const bits=[d.extra&&"Glutes first", d.tech&&d.tech!=="Failure"?`Last set: ${d.tech}`:`Last set RPE ${d.rpe}`, d.early&&`early sets RPE ${d.early}`,
     d.wu&&`${d.wu.replace("-","–")} warm-up set${wu===1?"":"s"}`];
   det.appendChild(mkT("summary","",bits.filter(Boolean).join(" · ")));
   const spec=((PROG.warmup||{}).specific||[]).find(([l])=>parseInt(l)===wu);
