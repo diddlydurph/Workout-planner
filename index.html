@@ -186,6 +186,12 @@
   .q-h { font-size: 12px; color: #888; margin-bottom: 8px; line-height: 1.4; }
   .primary-btn { width: 100%; padding: 14px; border-radius: 10px; border: none; background: #27AE60; color: #0F0F12; font-size: 15px; font-weight: 700; margin: 6px 0 8px; }
   .primary-btn:disabled { opacity: 0.4; }
+  .swap-other { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+  .swap-other .ex-name-inp, .add-pos { flex: 1; min-width: 0; }
+  .add-pos { background: #0F0F12; border: 1px solid #2A2A30; border-radius: 6px; color: #E8E6E1; font-size: 13px; padding: 8px 6px; }
+  .add-go { background: #4A9EBF22; border: 1px solid #4A9EBF66; color: #4A9EBF; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .swap-mine { font-weight: 400; color: #4A9EBF; font-size: 11px; }
+  .swap-forget { color: #666; font-size: 12px; padding: 0 4px; }
   .link-btn { background: none; border: none; color: #4A9EBF; font-size: 13px; padding: 10px 0; display: block; }
   .row-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
   .plan-day-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -1022,7 +1028,7 @@ function defaultLog(day) {
   if(prev){
     let k=-1;
     const keyed=defs.map((d,i)=>{
-      const p=prev.findIndex(e=>e.name===d.name||(d.alts||[]).includes(e.name));
+      const p=prev.findIndex(e=>e.name===d.name||altsOf(d).includes(e.name));
       k=p>=0?p:k+0.01;
       if(p>=0&&prev[p].ss) exs[i].ss=true;
       return [k,exs[i]];
@@ -1696,6 +1702,15 @@ function renderGym(container, plan) {
     const aimBox=mk("div"), setAim=()=>{ const a=aimEl(nameInp.value); aimBox.replaceChildren(...(a?[a]:[])); };
     setAim();
     nameInp.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].name=nameInp.value); setVid(); setAim(); });
+    nameInp.addEventListener("focus",()=>{ nameInp._was=ex.name; });
+    nameInp.addEventListener("change",()=>{
+      const was=dayDef(S.day,nameInp._was), now=nameInp.value.trim();
+      if(!was||!now||now===nameInp._was||dayDef(S.day,now)) return;
+      addMyAlt(was.name,now);
+      const t=!MYPLAN&&anyTargets(now,S.day);
+      if(t) mutLog(l=>Object.assign(l.exercises[ei],{ rl:t.rl, rh:t.rh, rpe:t.rpe, wj:t.wj, rest:t.rest }));
+      nameInp._was=now; render();
+    });
     const rmBtn=mkT("button","ex-rm","✕");
     rmBtn.onclick=()=>{ mutLog(l=>l.exercises.splice(ei,1)); S.swapIdx=null; render(); };
     topRow.append(handle,nameInp,vid,rmBtn);
@@ -1703,7 +1718,7 @@ function renderGym(container, plan) {
     if(ss) card.appendChild(mkT("div","ss-tag",ss.last?`🔗 ${ss.tag} · superset: rest after this, then back to ${ss.first||"the first one"}`
       :`🔗 ${ss.tag} · superset: no rest, straight on to ${ss.next||"the next exercise"}`));
     // Program sessions: this week's last-set technique, effort and warm-up sets
-    const defEx=dayDefs.find(d=>d.name===ex.name||d.alts.includes(ex.name));
+    const defEx=dayDefs.find(d=>d.name===ex.name||altsOf(d).includes(ex.name));
     if(defEx&&defEx.prog) card.appendChild(progInfoEl(defEx));
     const tech=techOf(ex,defEx);
     card.appendChild(aimBox);
@@ -1739,10 +1754,10 @@ function renderGym(container, plan) {
     cfgRow.appendChild(mkT("span","ex-config-label","s"));
 
     // Swap button: options come from the plan entry this exercise belongs to, wherever it has been dragged
-    const slot=defEx||dayDefs[ei];
-    const allOpts=slot?[slot.name,...slot.alts]:[];
-    const alts=allOpts.filter(n=>n!==ex.name);
-    if(alts.length){
+    const slot=defEx||(!(ex.name||"").trim()&&dayDefs[ei]);
+    const allOpts=slot?[slot.name,...altsOf(slot)]:[];
+    const alts=allOpts.filter(n=>n!==ex.name), mine=slot?myAlts()[slot.name]||[]:[];
+    if(slot){
       const sb=mkT("button","swap-btn",S.swapIdx===ei?"Cancel":"⇄ Swap");
       sb.onclick=()=>{S.swapIdx=S.swapIdx===ei?null:ei;render();};
       cfgRow.appendChild(sb);
@@ -1766,7 +1781,7 @@ function renderGym(container, plan) {
     }
 
     // Swap panel: each option shows its own targets and when you last did it
-    if(S.swapIdx===ei&&alts.length){
+    if(S.swapIdx===ei&&slot){
       const sp=mk("div","swap-panel");
       sp.appendChild(mkT("div","swap-title","Choose alternative"));
       // Program sessions: swap for today, or for every week of the program
@@ -1779,6 +1794,12 @@ function renderGym(container, plan) {
         const ob=mk("button","swap-opt");
         const top=mk("div","swap-opt-top");
         top.appendChild(mkT("span","swap-opt-name",alt));
+        if(mine.includes(alt)){
+          // One of yours: tap ✕ to stop offering it
+          const x=mkT("span","swap-forget","✕"); x.title="Stop offering this";
+          x.onclick=e=>{ e.stopPropagation(); dropMyAlt(slot.name,alt); render(); };
+          top.firstChild.appendChild(mkT("span","swap-mine"," · yours")); top.appendChild(x);
+        }
         if(t) top.appendChild(mkT("span","swap-opt-tgt",`${t.rl}–${t.rh} · RPE ${t.rpe} · ${t.rest}s`));
         ob.appendChild(top);
         ob.appendChild(mkT("div","swap-opt-last",lastAlt?lastLabel(lastAlt,alt):"Not done yet"));
@@ -1792,6 +1813,17 @@ function renderGym(container, plan) {
         };
         sp.appendChild(ob);
       });
+      // Something else: today, and offered as a swap for this exercise from then on
+      const other=mk("div","swap-other"), oi=mk("input","ex-name-inp"); oi.placeholder="Something else…"; oi.setAttribute("list","exall"); oi.dataset.k=`other:${ei}`;
+      const og=mkT("button","add-go","Use");
+      og.onclick=()=>{
+        const alt=oi.value.trim(); if(!alt) return;
+        const t=anyTargets(alt,S.day)||{ rl:slot.rl, rh:slot.rh, rpe:slot.rpe||8, wj:slot.wj, rest:slot.rest||90 };
+        mutLog(l=>{ const e=l.exercises[ei]; e.name=alt; delete e.tech; e.rl=t.rl; e.rh=t.rh; e.rpe=t.rpe; e.wj=t.wj; e.rest=t.rest; });
+        addMyAlt(slot.name,alt); keep(alt);
+        S.swapIdx=null; render();
+      };
+      other.append(oi,og); sp.appendChild(other);
       if(prog&&!slot.extra){
         const skip=mkT("button","link-btn","Skip it");
         skip.onclick=()=>{
@@ -1877,8 +1909,10 @@ function renderGym(container, plan) {
     container.appendChild(card);
   });
 
-  const addEx=mkT("button","add-ex-btn","+ Add Exercise");
-  addEx.onclick=()=>{ mutLog(l=>l.exercises.push({name:"",rl:null,rh:null,rpe:8,wj:2.5,sets:[{w:"",r:"",rpe:""}]})); render(); };
+  exAllList();
+  if(S.adding) container.appendChild(addExEl(log));
+  const addEx=mkT("button","add-ex-btn",S.adding?"Cancel":"+ Add Exercise");
+  addEx.onclick=()=>{ S.adding=!S.adding; render(); };
   container.appendChild(addEx);
   // Personal plans: keep today's changes for every week from now on
   if(MYPLAN&&S.logs[S.day]&&!plan.prog){
@@ -2031,7 +2065,7 @@ function renderRuns(app){
 
 // ── Backup: every logged week in one JSON file ───────────────────────────────
 // Personal plan, setup answers, food details, weigh-ins and any training program travel with the logs
-const EXTRA_KEYS=["plan","me","nutrition","program","techs","bodyweight","bwPrefs"];
+const EXTRA_KEYS=["plan","me","nutrition","program","techs","bodyweight","bwPrefs","myAlts"];
 function exportBackup() {
   const data={};
   sList("logs:").forEach(k=>{ const v=sGet(k); if(v) data[k]=v; });
@@ -2455,6 +2489,31 @@ function keepAsPlan() {
     });
   });
 }
+// Add an exercise anywhere in the session: by default straight after the one you're on, because plans change
+function addExEl(log) {
+  const xs=log.exercises||[], p=mk("div","swap-panel");
+  p.appendChild(mkT("div","swap-title","Add an exercise"));
+  const ni=mk("input","ex-name-inp"); ni.placeholder="Exercise name"; ni.setAttribute("list","exall"); ni.dataset.k="add:name";
+  const cur=xs.reduce((a,e,i)=>(e.sets||[]).some(z=>String(z.r||"").trim())?i:a,-1);
+  const nm=(e,i)=>e.name||`exercise ${i+1}`;
+  const pos=mk("select","add-pos");
+  const opt=(v,t)=>{ const o=mk("option"); o.value=v; o.textContent=t; pos.appendChild(o); };
+  if(cur>=0) opt(cur+1,`Next, after ${nm(xs[cur],cur)}`);
+  opt(0,"First");
+  xs.forEach((e,i)=>{ if(i!==cur) opt(i+1,`After ${nm(e,i)}`); });
+  if(cur<0&&xs.length) pos.value=String(xs.length); // nothing logged yet: at the end
+  const go=mkT("button","add-go","Add");
+  go.onclick=()=>{
+    const name=ni.value.trim(), t=name&&anyTargets(name,S.day)||{ rl:8, rh:12, rpe:8, wj:2.5, rest:90 };
+    const d=name&&Object.values(DEFS).flat().find(x=>x&&x.name===name);
+    mutLog(l=>l.exercises.splice(+pos.value,0,{ name, rl:t.rl, rh:t.rh, rpe:t.rpe, wj:t.wj, rest:t.rest, sets:Array.from({length:d&&d.s||3},()=>({w:"",r:"",rpe:""})) }));
+    S.adding=false; S.swapIdx=null; S.help=null; render();
+  };
+  const row=mk("div","swap-other"); row.append(pos,go);
+  p.append(ni,row);
+  return p;
+}
+
 // Typing a library exercise into a card fills in its targets
 function fillFromLib(ei, name) {
   const L=LIBMAP[(name||"").trim()]; if(!L) return;
@@ -2518,7 +2577,28 @@ function exSecs(e, done=0) {
 // Program warm-up ~7 min, personal plan ~8, the original plan's Mobility tab warm-ups ~8 (upper) or ~10 (lower)
 const warmSecs=day=>PLAN[day]&&PLAN[day].prog?420:MYPLAN||!/leg|lower/i.test(PLAN[day]&&PLAN[day].label)?480:600;
 function fmtMin(secs) { return `${Math.max(5,Math.round(secs/300)*5)} min`; }
-function dayDef(day, name) { return (DEFS[day]||[]).find(d=>d.name===name||(d.alts||[]).includes(name)); }
+function dayDef(day, name) { return (DEFS[day]||[]).find(d=>d.name===name||altsOf(d).includes(name)); }
+// Your own substitutes: anything you've used in place of a plan exercise comes back as a swap option for it
+const myAlts=()=>sGet("myAlts")||{};
+function altsOf(d) { return [...(d.alts||[]),...(myAlts()[d.name]||[])].filter((n,i,a)=>n!==d.name&&a.indexOf(n)===i); }
+function addMyAlt(orig, name) {
+  name=(name||"").trim(); if(!orig||!name||name===orig) return;
+  if(Object.values(DEFS).some(ds=>(ds||[]).some(d=>d.name===orig&&(d.alts||[]).includes(name)))) return;
+  const m=myAlts(); m[orig]=[...new Set([...(m[orig]||[]),name])]; sSet("myAlts",m);
+}
+function dropMyAlt(orig, name) { const m=myAlts(); m[orig]=(m[orig]||[]).filter(n=>n!==name); if(!m[orig].length) delete m[orig]; sSet("myAlts",m); }
+// Targets for a name you type: the plan's or alternatives' if it's in there, then the exercise library's
+function anyTargets(name, day) {
+  const t=exTargets(name,day); if(t) return t;
+  const L=LIBMAP[(name||"").trim()]; return L?libTargets(L,MYSETUP):null;
+}
+// Every exercise name the app knows, for the name suggestions
+function exAllList() {
+  let dl=document.getElementById("exall");
+  if(!dl){ dl=mk("datalist"); dl.id="exall"; document.body.appendChild(dl); }
+  const names=new Set([...Object.values(DEFS).flatMap(ds=>(ds||[]).flatMap(d=>[d.name,...(d.alts||[])])),...Object.keys(ALTS),...LIB.map(e=>e.n),...Object.values(myAlts()).flat()]);
+  dl.replaceChildren(...[...names].filter(n=>n&&!/^Home:/.test(n)).sort().map(n=>{ const o=mk("option"); o.value=n; return o; }));
+}
 // "Home:" exercises are done at home, so they're counted separately from the gym time
 function sessionSecs(day, log) {
   let t=0, home=0, started=false;
