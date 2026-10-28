@@ -205,6 +205,8 @@
   .add-row .add-set-btn { flex: 1; margin-top: 0; }
   .tech-sel { background: none; border: 1px dashed #2A2A30; border-radius: 6px; color: #666; font-size: 12px; padding: 0 6px; max-width: 50%; }
   .tech-sel.on { color: #B088D0; border: 1px solid #B088D055; }
+  .vol-line { font-size: 11px; color: #777; margin: -2px 0 6px 33px; }
+  .vol-line:empty { display: none; }
   .fin-cap { font-size: 11px; color: #B088D0; margin: 0 0 6px 33px; }
   .fin-row .set-num { color: #B088D0; font-size: 11px; }
   .fin-w { font-size: 11px; color: #666; text-align: center; }
@@ -966,24 +968,74 @@ function calcHint(lastSets, rl, rh, wj) {
   if(!lastSets||!lastSets.length) return null;
   const filled=lastSets.map((s,i)=>({...s,n:i+1})).filter(s=>s.w&&s.r);
   if(!filled.length) return null;
-  // Judge the weight you finished on, so ramp-up and back-off sets don't skew the hint
-  const base=parseFloat(filled[filled.length-1].w);
-  const work=filled.filter(s=>parseFloat(s.w)===base);
-  const reps=work.map(s=>parseInt(s.r));
-  const min=Math.min(...reps), allTop=reps.every(r=>r>=rh);
-  if(allTop&&!wj) return {type:"harder", msg:`Top of the range at ${base}kg — make it harder: add a hold at the end or slow down`, color:"#27AE60", icon:"🏆"};
-  if(allTop) return {type:"weight", msg:`↑ Increase to ${+(base+wj).toFixed(1)}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"};
-  const worst=work[reps.indexOf(min)].n;
-  return {type:"reps", msg:`Push for ${Math.min(min+1,rh)} reps on all sets (set ${worst} was weakest at ${min})`, color:"#F0A500", icon:"📈"};
+  const W=s=>parseFloat(s.w), R=s=>parseInt(s.r), n=lastSets.length, up=w=>+(w+wj).toFixed(1);
+  const weights=[...new Set(filled.map(W))].sort((a,b)=>b-a), top=weights[0];
+  if(weights.length===1){
+    const reps=filled.map(R), min=Math.min(...reps);
+    if(reps.every(r=>r>=rh)) return wj?{type:"weight", msg:`↑ Increase to ${up(top)}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"}
+      :{type:"harder", msg:`Top of the range at ${top}kg — make it harder: add a hold at the end or slow down`, color:"#27AE60", icon:"🏆"};
+    const worst=filled[reps.indexOf(min)].n;
+    return {type:"reps", msg:`Push for ${Math.min(min+1,rh)} reps on all sets (set ${worst} was weakest at ${min})`, color:"#F0A500", icon:"📈"};
+  }
+  // The weight changed between sets: settle on one weight for every set, the heaviest you kept in the rep range
+  const at=w=>filled.filter(s=>W(s)===w), fmt=w=>at(w).map(R).join(", ");
+  const held=weights.find(w=>at(w).every(s=>R(s)>=rl));
+  const tag={type:"mixed", color:"#4A9EBF", icon:"⚖️"};
+  if(held==null){
+    const lo=weights[weights.length-1];
+    return {...tag, msg:`Reps were under ${rl} at every weight (${weights.map(w=>`${w}kg: ${fmt(w)}`).join(" · ")}). Do all ${n} sets at ${lo}kg and build up to ${rl}+`};
+  }
+  const reps=at(held).map(R), min=Math.min(...reps), topped=reps.every(r=>r>=rh);
+  if(held===top){
+    // Ramped up to the top weight and held it: get every set there before going heavier
+    return {...tag, msg:`Weights changed between sets (${weights.map(w=>`${w}kg: ${fmt(w)}`).join(" · ")}). Do all ${n} sets at ${top}kg, ${topped?rl+"+":Math.min(min+1,rh)} reps each`};
+  }
+  // The top weight was below the rep range: stay there if the lighter weight was easy, else settle on the lighter one
+  const next=topped&&wj?Math.min(up(held),top):held;
+  if(next===top) return {...tag, msg:`Do all ${n} sets at ${top}kg and push for ${rl}+ reps (you got ${fmt(top)} there last time, and ${held}kg hit the top of the range)`};
+  return {...tag, msg:`${top}kg was too heavy last time (${fmt(top)} reps). Do all ${n} sets at ${next}kg, ${topped?rl+"+":Math.min(min+1,rh)} reps each`};
 }
+
+// One session of an exercise summed up: weight lifted in total (sets, myo-reps and drops), reps, and the best set as an estimated 1RM
+function exStats(sets) {
+  let vol=0, reps=0, e1=0;
+  (sets||[]).filter(s=>String(s.r||"").trim()).forEach(s=>{
+    const w=parseFloat(s.w)||0, r=parseInt(s.r)||0;
+    [[w,r],...(s.myo||[]).map(m=>[w,parseInt(m)||0]),...(s.drops||[]).map(d=>[parseFloat(d.w)||0,parseInt(d.r)||0])]
+      .forEach(([lw,lr])=>{ vol+=lw*lr; reps+=lr; });
+    if(w&&r) e1=Math.max(e1,w*(1+r/30));
+  });
+  return { vol, reps, e1 };
+}
+// Holds, carries and bodyweight work compare reps (or seconds, lengths); everything else compares kg lifted
+const byReps=(name,st)=>!st.vol||/\((sec|lengths?|m)\b/i.test(name||"");
+const amtTxt=(name,st)=>byReps(name,st)?`${st.reps} ${/\(sec/i.test(name)?"sec":/length/i.test(name)?"lengths":"reps"}`:`${Math.round(st.vol).toLocaleString("en-GB")} kg`;
+function pctTxt(a,b) { if(!b) return ""; const p=Math.round((a-b)/b*100); return p>0?`up ${p}%`:p<0?`down ${-p}%`:"the same"; }
 
 function defaultLog(day) {
   const defs=DEFS[day];
   if(!defs) return {exercises:[{name:"",rl:null,rh:null,rpe:8,wj:2.5,sets:[{w:"",r:"",rpe:""}]}],notes:""};
-  return {
-    exercises: defs.map(d=>({ name:d.name, rl:d.rl, rh:d.rh, rpe:d.rpe||8, wj:d.wj, rest:d.rest||90, sets:Array.from({length:d.s},()=>({w:"",r:"",rpe:""})) })),
-    notes:""
-  };
+  const exs=defs.map(d=>({ name:d.name, rl:d.rl, rh:d.rh, rpe:d.rpe||8, wj:d.wj, rest:d.rest||90, sets:Array.from({length:d.s},()=>({w:"",r:"",rpe:""})) }));
+  // Same order (and supersets) as last time, so each exercise is done as fresh or tired as before and the comparison is fair.
+  // An exercise that's new to the plan stays right after the one it follows in the plan.
+  const prev=lastOrder(day);
+  if(prev){
+    let k=-1;
+    const keyed=defs.map((d,i)=>{
+      const p=prev.findIndex(e=>e.name===d.name||(d.alts||[]).includes(e.name));
+      k=p>=0?p:k+0.01;
+      if(p>=0&&prev[p].ss) exs[i].ss=true;
+      return [k,exs[i]];
+    });
+    return { exercises:keyed.sort((a,b)=>a[0]-b[0]).map(x=>x[1]), notes:"" };
+  }
+  return { exercises:exs, notes:"" };
+}
+// The exercises of the last logged session of this day, in the order they were done
+function lastOrder(day) {
+  const i=DAYS.indexOf(day);
+  const s=sessions().find(x=>x.i===i&&x.wk<WK&&(x.log.exercises||[]).some(e=>(e.sets||[]).some(z=>String(z.r||"").trim())));
+  return s?s.log.exercises:null;
 }
 
 const WK=weekKey(0);
@@ -1082,19 +1134,24 @@ function sessDate(wk,i) {
 function lastDone(name, gym) {
   const n=(name||"").trim().toLowerCase(); if(!n) return null;
   const cur=DAYS.indexOf(S.day);
-  let other=null;
+  let other=null, hit=null;
   for(const s of sessions()){
     if(s.wk>WK||(s.wk===WK&&s.i>=cur)) continue;
     const ex=s.log.exercises.find(e=>(e.name||"").trim().toLowerCase()===n);
     const sets=ex&&ex.sets||[];
     if(!sets.some(x=>x.r)) continue;
     const found={sets, when:sessDate(s.wk,s.i), gym:s.log.gym||null};
-    if(!found.gym||found.gym===gym) return {...found, other:false};
-    if(!other) other={...found, other:true};
+    if(!found.gym||found.gym===gym){ if(hit){ hit.prev=found; return hit; } hit={...found, other:false}; }
+    else if(!other&&!hit) other={...found, other:true};
   }
-  return other;
+  return hit||other;
 }
-function lastLabel(last) { return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)}`; }
+// Last time's sets, what they added up to, and how that compared with the time before
+function lastLabel(last, name) {
+  const st=exStats(last.sets), pv=last.prev&&exStats(last.prev.sets), r=byReps(name,st);
+  const tr=pv&&pctTxt(r?st.reps:st.vol,r?pv.reps:pv.vol);
+  return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)} · ${amtTxt(name,st)}${r?"":" lifted"}${tr?`, ${tr} on the time before`:""}`;
+}
 function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}${extraTxt(s)}`).join(", "); }
 // Lengthened partials and myo-rep mini-sets done after a set
 function extraTxt(s) {
@@ -1441,7 +1498,7 @@ function render() {
   // Keep the box you're typing in (and where the cursor is) when the screen redraws
   const ae = document.activeElement, fk = ae && ae.dataset && ae.dataset.k;
   let sel = null; try { if (fk && ae.selectionStart != null) sel = [ae.selectionStart, ae.selectionEnd]; } catch {}
-  renderView();
+  renderView(); updVol();
   if (fk) {
     const n = [...document.querySelectorAll('[data-k]')].find(x => x.dataset.k === fk);
     if (n) { n.focus({ preventScroll: true }); try { if (sel) n.setSelectionRange(sel[0], sel[1]); } catch {} }
@@ -1694,18 +1751,18 @@ function renderGym(container, plan) {
 
     // Progressive overload hint, from the last time this exercise was done at this gym on any day
     const last=lastDone(ex.name,gym);
-    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj??2.5):null;
+    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj??2.5):null, ghost=last&&!last.other?last.sets:[];
     if(hint){
       const h=mk("div","hint");
       h.style.background=`color-mix(in srgb,${hint.color} 10%,transparent)`;
       h.style.border=`1px solid color-mix(in srgb,${hint.color} 33%,transparent)`;
-      const ht=mkT("div","hint-type",{weight:"Increase Weight",harder:"Make It Harder",reps:"Push for More Reps"}[hint.type]);
+      const ht=mkT("div","hint-type",{weight:"Increase Weight",harder:"Make It Harder",reps:"Push for More Reps",mixed:"Same Weight Every Set"}[hint.type]);
       ht.style.color=hint.color;
       const htxt=mk("div");
-      htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",lastLabel(last)));
+      htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",lastLabel(last,ex.name)));
       h.append(mkT("span","",hint.icon),htxt); card.appendChild(h);
     } else if(last){
-      card.appendChild(mkT("div","last-ref",lastLabel(last)));
+      card.appendChild(mkT("div","last-ref",lastLabel(last,ex.name)));
     }
 
     // Swap panel: each option shows its own targets and when you last did it
@@ -1724,7 +1781,7 @@ function renderGym(container, plan) {
         top.appendChild(mkT("span","swap-opt-name",alt));
         if(t) top.appendChild(mkT("span","swap-opt-tgt",`${t.rl}–${t.rh} · RPE ${t.rpe} · ${t.rest}s`));
         ob.appendChild(top);
-        ob.appendChild(mkT("div","swap-opt-last",lastAlt?lastLabel(lastAlt):"Not done yet"));
+        ob.appendChild(mkT("div","swap-opt-last",lastAlt?lastLabel(lastAlt,alt):"Not done yet"));
         ob.onclick=()=>{
           mutLog(l=>{
             const e=l.exercises[ei]; e.name=alt; delete e.tech;
@@ -1759,10 +1816,11 @@ function renderGym(container, plan) {
       const row=mk("div","set-row");
       row.appendChild(mkT("div","set-num",String(si+1)));
 
-      const wi=mk("input","set-inp"); wi.type="number"; wi.placeholder="—"; wi.value=set.w||""; wi.dataset.k=`w:${ei}:${si}`;
+      const gs=ghost[si]||{}; // last time's set, shown faintly so you can compare set by set
+      const wi=mk("input","set-inp"); wi.type="number"; wi.placeholder=gs.r&&gs.w?gs.w:"—"; wi.value=set.w||""; wi.dataset.k=`w:${ei}:${si}`;
       wi.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].sets[si].w=wi.value); });
 
-      const ri=mk("input","set-inp"); ri.type="number"; ri.placeholder="—"; ri.value=set.r||""; ri.dataset.k=`r:${ei}:${si}`;
+      const ri=mk("input","set-inp"); ri.type="number"; ri.placeholder=gs.r||"—"; ri.value=set.r||""; ri.dataset.k=`r:${ei}:${si}`;
       ri.style.color=rc; ri.style.fontWeight=set.r?"700":"400";
       ri.style.borderColor=set.r&&ex.rl?rc+"88":"#2A2A30";
       ri.addEventListener("input",()=>{
@@ -1786,6 +1844,8 @@ function renderGym(container, plan) {
       row.append(wi,ri,rpei,rm); card.appendChild(row);
       if(si===ex.sets.length-1){ const f=finEl(ex,ei,si,tech); if(f) card.appendChild(f); }
     });
+
+    if(last&&!last.other){ const v=mk("div","vol-line"); v.dataset.vol=ei; card.appendChild(v); }
 
     const addRow=mk("div","add-row");
     const addSet=mkT("button","add-set-btn","+ Add Set");
@@ -2478,7 +2538,21 @@ function etaText() {
   return (started?`⏱ About ${fmtMin(secs)} left${today?` · done around ${at}`:""}`
     :`⏱ About ${fmtMin(secs)}${today?` · done by ${at} if you start now`:""}`)+hm;
 }
-function updEta() { const el=document.getElementById("sess-time"); if(el) el.textContent=etaText(); }
+function updEta() { const el=document.getElementById("sess-time"); if(el) el.textContent=etaText(); updVol(); }
+// Today so far against last time, by weight lifted (or reps for holds, carries and bodyweight work)
+function updVol() {
+  const l=getLog(), g=sessionGym(l);
+  document.querySelectorAll("[data-vol]").forEach(el=>{
+    const ex=(l.exercises||[])[+el.dataset.vol], last=ex&&lastDone(ex.name,g);
+    const st=ex&&exStats(ex.sets);
+    if(!last||last.other||!st.reps){ el.textContent=""; return; }
+    const pv=exStats(last.sets), r=byReps(ex.name,st)||byReps(ex.name,pv), a=r?st.reps:st.vol, b=r?pv.reps:pv.vol;
+    const all=(ex.sets||[]).every(s=>String(s.r||"").trim());
+    el.textContent=all?`Today: ${amtTxt(ex.name,r?{reps:a}:{vol:a})}, ${b?pctTxt(a,b)+" on last time":"no comparison"}${a>b?" ✓":""}`
+      :`Today so far: ${amtTxt(ex.name,r?{reps:a}:{vol:a})} · last time ${amtTxt(ex.name,r?{reps:b}:{vol:b})} in total`;
+    el.style.color=all&&a>b?"#27AE60":"#777";
+  });
+}
 
 // ── Rest after a set: once per set, and none after the last set of the session ──
 const restDone=new Set();
