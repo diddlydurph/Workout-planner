@@ -129,7 +129,7 @@
   .auto-saved-indicator { margin-top: 20px; padding: 12px; border-radius: 10px; background: #1A2A1A; border: 1px solid #27AE6044; color: #27AE60; font-size: 13px; font-weight: 600; text-align: center; }
 
   /* Rest timer overlay */
-  .rest-overlay { position: fixed; bottom: 0; left: 0; right: 0; background: #18181C; border-top: 2px solid #2A2A30; padding: 16px 20px 24px; display: flex; align-items: center; gap: 14px; z-index: 100; transform: translateY(100%); transition: transform 0.3s ease; box-shadow: 0 -4px 20px #00000088; }
+  .rest-overlay { position: fixed; top: 0; left: 0; right: 0; background: #18181C; border-bottom: 2px solid #2A2A30; padding: calc(10px + env(safe-area-inset-top)) 16px 12px; display: flex; align-items: center; gap: 14px; z-index: 100; transform: translateY(-110%); transition: transform 0.3s ease; box-shadow: 0 4px 20px #00000088; }
   .rest-overlay.active { transform: translateY(0); }
   .rest-ring { position: relative; width: 60px; height: 60px; flex-shrink: 0; }
   .rest-ring svg { transform: rotate(-90deg); width: 60px; height: 60px; }
@@ -140,6 +140,8 @@
   .rest-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
   .rest-sound { margin-top: 4px; background: #F0A50018; border: 1px solid #F0A50055; color: #F0A500; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
   .rest-sound[hidden] { display: none; }
+  .rest-notify { margin-top: 4px; background: #4A9EBF18; border: 1px solid #4A9EBF55; color: #4A9EBF; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .rest-notify[hidden] { display: none; }
   .rest-ex-name { font-size: 13px; font-weight: 600; color: #E8E6E1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rest-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
   .rest-skip { background: #C0392B22; border: 1px solid #C0392B55; color: #C0392B; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; white-space: nowrap; }
@@ -269,6 +271,7 @@ let DEFS = {
   Wednesday: [
     { name:"Machine Chest Press",         rl:6,  rh:10, rpe:8, s:3, wj:6.8, rest:150, alts:["Hammer Strength Press","DB Floor Press"] },
     { name:"15° Incline DB Press",        rl:8,  rh:10, rpe:8, s:3, wj:2,   rest:120, alts:["Incline Machine Press","Low-Incline Smith Press"], note:"Palms facing each other (or turned in halfway) · elbows 30–45° from your sides, not flared · lower to the sides of the chest for a stretch, press up and slightly in" },
+    { name:"Seated DB Shoulder Press",    rl:10, rh:12, rpe:6, s:2, wj:2,   rest:120, alts:["Machine Shoulder Press"], note:"Testing the right shoulder · only if that arm goes overhead pain-free and as strong as the left · bench just short of upright, palms facing forward, elbows slightly in front of the body (not flared straight out to the sides) · about half the weight you'd guess, stop 4 reps short · a mild ache (3/10 or less) gone by morning is OK; sharp pain, a night ache, weakness or tingling: stop · 2 quiet sessions, then 3 sets and add weight" },
     { name:"Standing Mid Cable Fly",      rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:90,  alts:["Mid Cable Fly (bench)"] },
     { name:"Seated DB Lateral",           rl:12, rh:15, rpe:9, s:4, wj:1,   rest:60,  alts:["Cable Lateral Raise","Machine Lateral Raise"] },
     { name:"Rope Pushdown",               rl:10, rh:12, rpe:9, s:3, wj:2.3, rest:60,  alts:["Bar Pushdown","Single-Arm Pushdown"], note:"Elbows pinned, upper arms still · pull the rope apart and turn the hands out slightly at the bottom (that's the hands, not the shoulders) · full lockout, control back up" },
@@ -282,6 +285,7 @@ let DEFS = {
     { name:"Hip Abduction",               rl:15, rh:20, rpe:9, s:3, wj:6.8, rest:60,  alts:["Cable Hip Abduction"], note:"Lean slightly forward off the backrest to bias the glutes · pause 1s at the widest point" },
     { name:"Seated Leg Curl",             rl:10, rh:12, rpe:9, s:4, wj:6.8, rest:90,  alts:["Lying Leg Curl","Single-Leg Curl"] },
     { name:"Leg Extension",               rl:12, rh:15, rpe:9, s:3, wj:6.8, rest:60,  alts:["Single-Leg Extension"] },
+    { name:"Calf Raise (bent knee)",      rl:10, rh:15, rpe:9, s:3, wj:5,   rest:60,  alts:["Seated Calf Raise","Leg Press Calf Raise"], note:"Angled calf machine with the knees bent, which works the deeper soleus · pause 2s in the bottom stretch, 1s squeeze at the top" },
     ...HOME,
   ],
   Saturday: [
@@ -302,7 +306,7 @@ let DEFS = {
     { name:"1-Leg Leg Press (/side)",     rl:10, rh:12, rpe:8, s:3, wj:6.8, rest:90,  alts:["Leg Press (feet high)"], note:"Glute focus · foot high and slightly out on the platform, push through the heel · knee tracks over the toes · stop just short of lockout" },
     { name:"Lying Leg Curl",              rl:10, rh:12, rpe:9, s:3, wj:6.8, rest:90,  alts:["Seated Leg Curl","Single-Leg Curl"] },
     { name:"Leg Extension",               rl:12, rh:15, rpe:9, s:3, wj:6.8, rest:60,  alts:["Single-Leg Extension"] },
-    { name:"Calf Raise",                  rl:10, rh:15, rpe:9, s:3, wj:5,   rest:60,  alts:["Seated Calf Raise","Leg Press Calf Raise"] },
+    { name:"Calf Raise",                  rl:10, rh:15, rpe:9, s:3, wj:5,   rest:60,  alts:["Smith Standing Calf Raise","Leg Press Calf Raise"], note:"Angled calf machine with straight legs, for the main calf muscle · pause 2s in the deep stretch at the bottom, 1s at the top · Smith standing raise (toes on a plate) if it's taken" },
     // If there's time
     { name:"Farmer's Carry (lengths)",    rl:2,  rh:4,  rpe:8, s:3, wj:0,   rest:90,  alts:["Farmer's Hold (sec)"], note:"If there's time · 25kg max in the carry area, so add lengths, not weight · then a 10s hold at the end" },
     { name:"Cable Crunch",                rl:12, rh:15, rpe:9, s:3, wj:2.3, rest:60,  alts:["Machine Crunch"], note:"If there's time" },
@@ -341,6 +345,7 @@ let ALTS = {
   "Incline Machine Press":      { rl:8,  rh:10, rpe:8, wj:6.8, rest:120 },
   "Mid Cable Fly (bench)":      { rl:12, rh:15, rpe:9, wj:2.3, rest:60  },
   "Machine Lateral Raise":      { rl:12, rh:15, rpe:9, wj:4.5, rest:60  },
+  "Machine Shoulder Press":     { rl:10, rh:12, rpe:6, wj:5,   rest:120 },
   // Legs
   "Hack Squat":                 { rl:8,  rh:10, rpe:8, wj:5,   rest:150 },
   "Pendulum Squat":             { rl:8,  rh:10, rpe:8, wj:5,   rest:150 },
@@ -351,6 +356,7 @@ let ALTS = {
   "Cable Hip Abduction":        { rl:15, rh:20, rpe:9, wj:2.3, rest:60  },
   "Seated Calf Raise":          { rl:10, rh:15, rpe:9, wj:5,   rest:60  },
   "Leg Press Calf Raise":       { rl:10, rh:15, rpe:9, wj:6.8, rest:60  },
+  "Smith Standing Calf Raise":  { rl:10, rh:15, rpe:9, wj:5,   rest:60  },
   // Core, carries, forearms
   "Band-Resisted Dead Bug":     { rl:8,  rh:10, rpe:7, wj:0,   rest:45  },
   "Bird Dog":                   { rl:8,  rh:10, rpe:7, wj:0,   rest:45  },
@@ -396,6 +402,8 @@ const VID_Q = {
   "CS T-Bar Row":"chest supported t-bar row machine",
   "45° Back Extension":"glute focused 45 degree back extension",
   "15° Incline DB Press":"neutral grip low incline dumbbell press",
+  "Calf Raise":"straight leg calf press machine",
+  "Calf Raise (bent knee)":"bent knee calf raise machine soleus",
   "Neutral Lat Pulldown":"neutral grip lat pulldown",
   "Hip Abduction":"seated hip abduction machine glutes",
   "Cross-Body Extension":"cable cross body triceps extension",
@@ -475,7 +483,7 @@ const AIMS = [
   [/trap bar deadlift/, "Glutes, quads and hamstrings · whole-body lift", "Legs and glutes driving the floor away, back stays flat"],
   [/rdl|romanian|deadlift/, "Hamstrings and glutes · hip hinge", "Stretch down the back of the thighs, glutes at the top; flat back"],
   // Legs
-  [/seated calf/, "Soleus (deep calf) · knees bent", "Lower calf; pause at the bottom stretch"],
+  [/seated calf|calf raise \(bent/, "Soleus (deep calf) · knees bent", "Lower calf; pause at the bottom stretch"],
   [/calf/, "Calves · up on the toes, knees straight", "Calf muscles; pause at the bottom stretch"],
   [/split squat|lunge|step-up/, "Front-leg glute and quads · single leg", "Glute and thigh of the front leg; lean slightly forward for more glute"],
   [/sissy|reverse nordic/, "Quads, with a big stretch · knees forward", "Front of the thighs"],
@@ -995,6 +1003,12 @@ function mutLog(fn) {
   updEta();
 }
 function renderSaveBtn() {} // no-op, kept for safety
+// Notes are saved as you type, so nothing is lost if the screen redraws or the phone reloads the app
+function notesEl(log, ph) {
+  const ta=mk("textarea","notes-ta"); ta.placeholder=ph; ta.value=log.notes||""; ta.dataset.k=`notes:${S.day}`;
+  ta.addEventListener("input",()=>{ const v=ta.value; mutLog(l=>l.notes=v); });
+  return ta;
+}
 
 // ── Gyms: weights and kit differ, so hints compare like with like ─────────────
 function sessionGym(log) { return (log&&log.gym)||sGet("lastGym")||GYMS[0]; }
@@ -1222,9 +1236,9 @@ function beep(bus, t, f, dur, vol) {
   });
 }
 const SOUND = {
-  warn: (bus, t) => { beep(bus, t, 880, 0.12, 0.5); beep(bus, t + 0.22, 880, 0.12, 0.5); },
-  bing: (bus, t) => beep(bus, t, 1046, 0.15, 0.55),
-  end:  (bus, t) => { beep(bus, t, 1568, 0.5, 0.55); beep(bus, t + 0.65, 1568, 0.5, 0.55); },
+  warn: (bus, t) => { beep(bus, t, 880, 0.12, 0.35); beep(bus, t + 0.22, 880, 0.12, 0.35); },
+  bing: (bus, t) => beep(bus, t, 1046, 0.15, 0.38),
+  end:  (bus, t) => { beep(bus, t, 1568, 0.5, 0.38); beep(bus, t + 0.65, 1568, 0.5, 0.38); },
 };
 const CUES = [[10, 'warn'], [3, 'bing'], [2, 'bing'], [1, 'bing'], [0, 'end']];
 
@@ -1274,7 +1288,6 @@ function ringLate() {
     SOUND.end(b, audioCtx.currentTime + 0.02);
   }).catch(() => {});
 }
-function buzz(p) { try { if (navigator.vibrate && !document.hidden) navigator.vibrate(p); } catch {} }
 
 // Keep the screen on while resting: a locked screen is the main reason the alert used to stay silent
 async function holdScreen() {
@@ -1291,8 +1304,9 @@ function releaseScreen() {
 }
 
 function askNotify() {
-  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().then(updateRestUI, () => {}); } catch {}
 }
+function allowNotify() { unlockAudio(); askNotify(); }
 
 function saveRest() { sSet(REST_KEY, { end: restTimer.end, total: restTimer.total, exName: restTimer.exName }); }
 function clearRestTimers() { clearInterval(restTimer.tick); clearTimeout(restTimer.to); }
@@ -1310,7 +1324,6 @@ function closeRestOverlay() {
 function scheduleRest() {
   clearRestTimers();
   restTimer.fired = false;
-  restTimer.lastR = null;
   restTimer.tick = setInterval(restTickFn, 250);
   restTimer.to = setTimeout(restTickFn, Math.max(0, restTimer.end - Date.now()) + 20);
   swPost({ type: 'rest', end: restTimer.end, label: restTimer.exName, warn: restTimer.total >= 15 });
@@ -1324,13 +1337,6 @@ function restTickFn() {
   updateRestUI();
   // If the phone paused our audio mid-rest, ask for it back (the countdown is rebooked once it's running)
   if (ms > 0 && audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
-  // Buzz with the sounds: a nudge at 10s, a tick at 3, 2, 1
-  const r = restTimer.remaining;
-  if (r !== restTimer.lastR && !restTimer.fired && ms > 0) {
-    if (restTimer.lastR != null && r === 10 && restTimer.total >= 15) buzz([100, 100, 100]);
-    if (r >= 1 && r <= 3) buzz(60);
-    restTimer.lastR = r;
-  }
   if (ms <= 0 && !restTimer.fired) {
     restTimer.fired = true;
     clearRestTimers(); releaseScreen();
@@ -1339,7 +1345,6 @@ function restTickFn() {
     if (!document.hidden && -ms < 5000) {
       const booked = cueEndAt > 0 && audioCtx && audioCtx.state === 'running' && audioCtx.currentTime + 0.3 >= cueEndAt;
       if (!booked) { cancelCues(); ringLate(); }
-      buzz([600, 200, 600, 200, 600]);
     } else cancelCues(); // back long after the end: don't play a stale countdown
     setTimeout(closeRestOverlay, 1500);
     setTimeout(() => { if (restTimer.fired) stopKeepAlive(); }, 2500); // let the end beeps finish first
@@ -1367,6 +1372,8 @@ function updateRestUI() {
   // Say so when sound can't play (e.g. the browser reloaded the app): one tap brings it back
   const sd = document.getElementById('rest-sound');
   if (sd) sd.hidden = !!(audioCtx && audioCtx.state === 'running');
+  const nb = document.getElementById('rest-notify');
+  if (nb) nb.hidden = !('Notification' in window) || Notification.permission !== 'default' || !(sd && sd.hidden);
 }
 
 function restSkip() {
@@ -1418,7 +1425,14 @@ function scrollKey() {
 function render() {
   HIST = null;
   if (document.getElementById('app').childElementCount) lastScroll.top = window.scrollY;
+  // Keep the box you're typing in (and where the cursor is) when the screen redraws
+  const ae = document.activeElement, fk = ae && ae.dataset && ae.dataset.k;
+  let sel = null; try { if (fk && ae.selectionStart != null) sel = [ae.selectionStart, ae.selectionEnd]; } catch {}
   renderView();
+  if (fk) {
+    const n = [...document.querySelectorAll('[data-k]')].find(x => x.dataset.k === fk);
+    if (n) { n.focus({ preventScroll: true }); try { if (sel) n.setSelectionRange(sel[0], sel[1]); } catch {} }
+  }
   const key = scrollKey();
   const top = key === lastScroll.key ? lastScroll.top : 0; // new day or tab starts at the top
   window.scrollTo(0, top);
@@ -1567,9 +1581,7 @@ function renderRun(container) {
   });
   container.appendChild(grid);
   container.appendChild(mkT("div","fld-lbl","Notes"));
-  const ta=mk("textarea","notes-ta"); ta.placeholder="How did it feel? Pace, route, effort level..."; ta.value=log.notes||"";
-  ta.addEventListener("change",()=>{ mutLog(l=>l.notes=ta.value); });
-  ta.addEventListener("blur",()=>{ mutLog(l=>l.notes=ta.value); });
+  const ta=notesEl(log,"How did it feel? Pace, route, effort level...");
   container.appendChild(ta);
 }
 
@@ -1597,7 +1609,7 @@ function renderGym(container, plan) {
     // Top row: drag handle | name | video | delete
     const topRow=mk("div","ex-top-row");
     const handle=mkT("div","drag-handle","⠿");
-    const nameInp=mk("input","ex-name-inp"); nameInp.placeholder=`Exercise ${ei+1}`; nameInp.value=ex.name||"";
+    const nameInp=mk("input","ex-name-inp"); nameInp.placeholder=`Exercise ${ei+1}`; nameInp.value=ex.name||""; nameInp.dataset.k=`n:${ei}`;
     if(MYPLAN){ nameInp.setAttribute("list","exlib"); nameInp.addEventListener("change",()=>fillFromLib(ei,nameInp.value)); }
     const vid=mkT("a","ex-vid","▶"); vid.target="_blank"; vid.rel="noopener"; vid.title="Form video";
     const setVid=()=>{ const n=nameInp.value.trim(); vid.href=n?progLink(n)||exVideo(n):""; vid.style.visibility=n?"visible":"hidden"; };
@@ -1724,28 +1736,22 @@ function renderGym(container, plan) {
       const row=mk("div","set-row");
       row.appendChild(mkT("div","set-num",String(si+1)));
 
-      const wi=mk("input","set-inp"); wi.type="number"; wi.placeholder="—"; wi.value=set.w||"";
+      const wi=mk("input","set-inp"); wi.type="number"; wi.placeholder="—"; wi.value=set.w||""; wi.dataset.k=`w:${ei}:${si}`;
       wi.addEventListener("input",()=>{ mutLog(l=>l.exercises[ei].sets[si].w=wi.value); });
 
-      const ri=mk("input","set-inp"); ri.type="number"; ri.placeholder="—"; ri.value=set.r||"";
+      const ri=mk("input","set-inp"); ri.type="number"; ri.placeholder="—"; ri.value=set.r||""; ri.dataset.k=`r:${ei}:${si}`;
       ri.style.color=rc; ri.style.fontWeight=set.r?"700":"400";
       ri.style.borderColor=set.r&&ex.rl?rc+"88":"#2A2A30";
       ri.addEventListener("input",()=>{
         mutLog(l=>l.exercises[ei].sets[si].r=ri.value);
+        clearTimeout(ri._rest); if(ri.value) ri._rest=setTimeout(()=>restAfterSet(ei,si),2000); else restDone.delete(setKey(ei,si));
         const nc=repsCol(ri.value,ex.rl,ex.rh);
         ri.style.color=nc; ri.style.fontWeight=ri.value?"700":"400";
         ri.style.borderColor=ri.value&&ex.rl?nc+"88":"#2A2A30";
       });
-      ri.addEventListener("blur",()=>{
-        if(!ri.value) return;
-        // After the last set, myo-reps and the stretch get their own short timers instead of the full rest
-        const cur=getLog().exercises[ei]||ex, t=techOf(cur,defEx), last=si===(cur.sets||[]).length-1;
-        if(last&&t==="Myo-reps") startRest(`${ex.name} · myo-rep rest`,15);
-        else if(last&&t==="Static Stretch (30s)") startRest(`${ex.name} · hold the stretch`,30);
-        else startRest(ex.name, ex.rest||90);
-      });
+      ri.addEventListener("blur",()=>{ clearTimeout(ri._rest); if(ri.value) restAfterSet(ei,si); });
 
-      const rpei=mk("input","set-rpe"); rpei.type="number"; rpei.placeholder="—"; rpei.value=set.rpe||"";
+      const rpei=mk("input","set-rpe"); rpei.type="number"; rpei.placeholder="—"; rpei.value=set.rpe||""; rpei.dataset.k=`rpe:${ei}:${si}`;
       rpei.style.color=rpec;
       rpei.addEventListener("input",()=>{
         mutLog(l=>l.exercises[ei].sets[si].rpe=rpei.value);
@@ -1788,9 +1794,7 @@ function renderGym(container, plan) {
   }
 
   container.appendChild(mkT("div","fld-lbl","Session Notes"));
-  const ta=mk("textarea","notes-ta"); ta.placeholder="Energy, PRs, injuries, anything to remember..."; ta.value=log.notes||"";
-  ta.addEventListener("change",()=>{ mutLog(l=>l.notes=ta.value); });
-  ta.addEventListener("blur",()=>{ mutLog(l=>l.notes=ta.value); });
+  const ta=notesEl(log,"Energy, PRs, injuries, anything to remember...");
   container.appendChild(ta);
 }
 
@@ -2404,8 +2408,7 @@ function renderRest(container) {
   const log=getLog();
   container.appendChild(mkT("div","rest-day","Rest day. Recovery is when you get stronger: a walk, some stretching, or nothing at all."));
   container.appendChild(mkT("div","fld-lbl","Notes"));
-  const ta=mk("textarea","notes-ta"); ta.placeholder="Sleep, soreness, steps, anything to remember..."; ta.value=log.notes||"";
-  ta.addEventListener("change",()=>{ mutLog(l=>l.notes=ta.value); });
+  const ta=notesEl(log,"Sleep, soreness, steps, anything to remember...");
   container.appendChild(ta);
 }
 
@@ -2442,6 +2445,24 @@ function etaText() {
     :`⏱ About ${fmtMin(secs)}${today?` · done by ${at} if you start now`:""}`)+hm;
 }
 function updEta() { const el=document.getElementById("sess-time"); if(el) el.textContent=etaText(); }
+
+// ── Rest after a set: once per set, and none after the last set of the session ──
+const restDone=new Set();
+const setKey=(ei,si)=>`${WK}|${S.day}|${ei}|${si}`;
+function restAfterSet(ei, si) {
+  const l=getLog(), ex=(l.exercises||[])[ei]; if(!ex||!ex.sets[si]||!String(ex.sets[si].r||"").trim()) return;
+  const k=setKey(ei,si); if(restDone.has(k)) return; restDone.add(k);
+  const def=(DEFS[S.day]||[]).find(d=>d.name===ex.name||(d.alts||[]).includes(ex.name));
+  const t=techOf(ex,def), last=si===ex.sets.length-1;
+  // After the last set, myo-reps and the stretch get their own short timers instead of the full rest
+  if(last&&t==="Myo-reps") return startRest(`${ex.name} · myo-rep rest`,15);
+  if(last&&t==="Static Stretch (30s)") return startRest(`${ex.name} · hold the stretch`,30);
+  // Nothing left to do in this session (gym and home exercises count separately): no rest needed
+  const home=/^Home:/i.test(ex.name||"");
+  const left=l.exercises.some(e=>/^Home:/i.test(e.name||"")===home&&(e.sets||[]).some(x=>!String(x.r||"").trim()));
+  if(!left) return;
+  startRest(ex.name, ex.rest||90);
+}
 
 // ── Last-set techniques: myo-reps, lengthened partials and a stretch, logged on the last set ──
 const TECH_OPTS=[["","Normal last set"],["Failure","To failure"],["Failure + LLPs (Extend set)","+ Partials"],["Myo-reps","Myo-reps"],["Static Stretch (30s)","+ 30s stretch"]];
@@ -2772,6 +2793,7 @@ render();
     <div class="rest-label">Rest — <input id="rest-dur-inp" class="rest-inp" type="number" placeholder="90"> sec</div>
     <div class="rest-ex-name" id="rest-ex-label">—</div>
     <button class="rest-sound" id="rest-sound" hidden onclick="unlockAudio()">🔇 Sound off · tap to turn on</button>
+    <button class="rest-notify" id="rest-notify" hidden onclick="allowNotify()">🔔 Tap so it rings with the screen off</button>
   </div>
   <div class="rest-actions">
     <button class="rest-add" onclick="restAdd30()">+30s</button>
