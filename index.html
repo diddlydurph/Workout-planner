@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Bulk Log">
@@ -1387,7 +1387,15 @@ function allowNotify() { unlockAudio(); askNotify(); }
 function saveRest() { sSet(REST_KEY, { end: restTimer.end, total: restTimer.total, exName: restTimer.exName }); }
 function clearRestTimers() { clearInterval(restTimer.tick); clearTimeout(restTimer.to); }
 
+// With the keyboard up, the phone can slide the visible part of the page down to the box you're typing in,
+// leaving the top of the page (and a bar pinned there) off screen. Keep the timer bar at the top of what you can see.
+function placeRestOverlay() {
+  const o = document.getElementById('rest-overlay'), vv = window.visualViewport;
+  if (o) o.style.top = vv ? Math.max(0, Math.round(vv.offsetTop)) + 'px' : '0px';
+}
+if (window.visualViewport) ['resize', 'scroll'].forEach(e => window.visualViewport.addEventListener(e, placeRestOverlay));
 function showRestOverlay() {
+  placeRestOverlay();
   document.getElementById('rest-overlay').classList.add('active');
   document.getElementById('rest-ex-label').textContent = restTimer.exName || 'Next set';
   document.getElementById('rest-dur-inp').value = restTimer.total;
