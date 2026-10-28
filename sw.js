@@ -12,21 +12,21 @@ self.addEventListener('message', e => {
   if (d.type === 'cancel') { token++; return; }
   if (d.type !== 'rest') return;
   const mine = ++token;
-  const ping = async (title, body, vibrate) => {
+  const ping = async (title, body) => {
     if (mine !== token) return; // timer was skipped, extended or restarted
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (wins.some(c => c.visibilityState === 'visible')) return; // app is open: it rings itself
     if (Notification.permission !== 'granted') return;
-    await self.registration.showNotification(title, { body, tag: 'rest-timer', renotify: true, vibrate });
+    await self.registration.showNotification(title, { body, tag: 'rest-timer', renotify: true, vibrate: [] });
   };
   const next = d.label ? `Next set: ${d.label}` : 'Next set';
   e.waitUntil((async () => {
     if (d.warn && d.end - Date.now() > 10500) {
       await until(d.end - 10000);
-      await ping('10 seconds left', `Get set · ${next}`, [150]);
+      await ping('10 seconds left', `Get set · ${next}`);
     }
     await until(d.end);
-    await ping('Rest done', next, [600, 200, 600, 200, 600]);
+    await ping('Rest done', next);
   })());
 });
 
