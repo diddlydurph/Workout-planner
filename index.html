@@ -970,17 +970,25 @@ function weekLabel(wk) {
   return `${d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${e.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`;
 }
 
-function calcHint(lastSets, rl, rh, wj) {
+function calcHint(lastSets, rl, rh, wj, tRpe) {
   if(!lastSets||!lastSets.length) return null;
   const filled=lastSets.map((s,i)=>({...s,n:i+1})).filter(s=>s.w&&s.r);
   if(!filled.length) return null;
-  const W=s=>parseFloat(s.w), R=s=>parseInt(s.r), n=lastSets.length, up=w=>+(w+wj).toFixed(1);
+  const W=s=>parseFloat(s.w), R=s=>parseInt(s.r), n=lastSets.length, up=(w,k=1)=>+(w+k*wj).toFixed(1);
   const weights=[...new Set(filled.map(W))].sort((a,b)=>b-a), top=weights[0];
   if(weights.length===1){
     const reps=filled.map(R), min=Math.min(...reps);
-    if(reps.every(r=>r>=rh)) return wj?{type:"weight", msg:`↑ Increase to ${up(top)}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"}
-      :{type:"harder", msg:`Top of the range at ${top}kg — make it harder: add a hold at the end or slow down`, color:"#27AE60", icon:"🏆"};
+    // RPE against the target: even the hardest set well under it means reps in the tank; well over it, the reps were a grind
+    const rs=filled.map(s=>parseFloat(s.rpe)).filter(x=>x>0), hardest=rs.length?Math.max(...rs):null, avg=avgRpe(filled);
+    const easy=tRpe&&hardest!=null&&hardest<=tRpe-1.5, grind=tRpe&&avg!=null&&avg>=tRpe+1.5;
+    if(reps.every(r=>r>=rh)){
+      if(!wj) return {type:"harder", msg:`Top of the range at ${top}kg — make it harder: add a hold at the end or slow down`, color:"#27AE60", icon:"🏆"};
+      if(easy) return {type:"weight", msg:`↑ Increase to ${up(top,2)}kg — it felt easy last time (RPE ${fmtR(hardest)} at most, target ${tRpe}); aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"};
+      return {type:"weight", msg:`↑ Increase to ${up(top)}kg — aim for ${rl} reps each set`, color:"#27AE60", icon:"🏆"};
+    }
     const worst=filled[reps.indexOf(min)].n;
+    if(easy) return {type:"reps", msg:`Push for ${Math.min(min+2,rh)} reps on all sets — last time was RPE ${fmtR(hardest)} at most against a target of ${tRpe}, so there's more in the tank`, color:"#F0A500", icon:"📈"};
+    if(grind) return {type:"rpe", msg:`Match last time's reps at ${top}kg (${reps.join(", ")}) and aim for RPE ${tRpe}: it was RPE ${fmtR(avg)}. The same reps feeling easier is progress too`, color:"#F0A500", icon:"🎯"};
     return {type:"reps", msg:`Push for ${Math.min(min+1,rh)} reps on all sets (set ${worst} was weakest at ${min})`, color:"#F0A500", icon:"📈"};
   }
   // The weight changed between sets: settle on one weight for every set, the heaviest you kept in the rep range
@@ -1016,6 +1024,19 @@ function exStats(sets) {
 // Holds, carries and bodyweight work compare reps (or seconds, lengths); everything else compares kg lifted
 const byReps=(name,st)=>!st.vol||/\((sec|lengths?|m)\b/i.test(name||"");
 const amtTxt=(name,st)=>byReps(name,st)?`${st.reps} ${/\(sec/i.test(name)?"sec":/length/i.test(name)?"lengths":"reps"}`:`${Math.round(st.vol).toLocaleString("en-GB")} kg`;
+// Average RPE of the logged sets that have one
+function avgRpe(sets) { const xs=(sets||[]).filter(s=>String(s.r||"").trim()).map(s=>parseFloat(s.rpe)).filter(x=>x>0); return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null; }
+const fmtR=r=>String(Math.round(r*10)/10);
+// One session against an earlier one: more weight lifted (or reps) is progress, and so is the same at a lower RPE
+function trend(name, a, b, ref) {
+  const sa=exStats(a), sb=exStats(b), r=byReps(name,sa)||byReps(name,sb), x=r?sa.reps:sa.vol, y=r?sb.reps:sb.vol;
+  if(!y) return null;
+  const p=pctTxt(x,y), same=p==="the same", up=p.startsWith("up"), base=same?`the same as ${ref}`:`${p} on ${ref}`;
+  const ra=avgRpe(a), rb=avgRpe(b), d=ra!=null&&rb!=null?ra-rb:0, rr=`RPE ${fmtR(rb)} → ${fmtR(ra)}`;
+  if(d<=-0.5) return { txt:up?`${base}, and easier (${rr})`:same?`${base}, but easier (${rr}), so still progress`:`${base}, but easier (${rr})`, good:up||same };
+  if(d>=0.5) return { txt:up?`${base}, but harder (${rr})`:`${base}, and harder (${rr})`, good:up };
+  return { txt:base, good:up };
+}
 function pctTxt(a,b) { if(!b) return ""; const p=Math.round((a-b)/b*100); return p>0?`up ${p}%`:p<0?`down ${-p}%`:"the same"; }
 
 function defaultLog(day) {
@@ -1154,11 +1175,10 @@ function lastDone(name, gym) {
 }
 // Last time's sets, what they added up to, and how that compared with the time before
 function lastLabel(last, name) {
-  const st=exStats(last.sets), pv=last.prev&&exStats(last.prev.sets), r=byReps(name,st);
-  const tr=pv&&pctTxt(r?st.reps:st.vol,r?pv.reps:pv.vol);
-  return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)} · ${amtTxt(name,st)}${r?"":" lifted"}${tr?`, ${tr} on the time before`:""}`;
+  const st=exStats(last.sets), r=byReps(name,st), tr=last.prev&&trend(name,last.sets,last.prev.sets,"the time before");
+  return `${last.other?"Last at "+last.gym:"Last time"} (${last.when}): ${setsText(last.sets)} · ${amtTxt(name,st)}${r?"":" lifted"}${tr?`, ${tr.txt}`:""}`;
 }
-function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}${extraTxt(s)}`).join(", "); }
+function setsText(sets) { return sets.filter(s=>s.r).map(s=>`${s.w?s.w+"kg":"BW"}×${s.r}${parseFloat(s.rpe)>0?" @"+s.rpe:""}${extraTxt(s)}`).join(", "); }
 // Lengthened partials and myo-rep mini-sets done after a set
 function extraTxt(s) {
   const m=(s.myo||[]).filter(Boolean), d=(s.drops||[]).filter(x=>x.r);
@@ -1774,12 +1794,12 @@ function renderGym(container, plan) {
 
     // Progressive overload hint, from the last time this exercise was done at this gym on any day
     const last=lastDone(ex.name,gym);
-    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj??2.5):null, ghost=last&&!last.other?last.sets:[];
+    const hint=last&&!last.other&&ex.rl?calcHint(last.sets,ex.rl,ex.rh,ex.wj??2.5,ex.rpe):null, ghost=last&&!last.other?last.sets:[];
     if(hint){
       const h=mk("div","hint");
       h.style.background=`color-mix(in srgb,${hint.color} 10%,transparent)`;
       h.style.border=`1px solid color-mix(in srgb,${hint.color} 33%,transparent)`;
-      const ht=mkT("div","hint-type",{weight:"Increase Weight",harder:"Make It Harder",reps:"Push for More Reps",mixed:"Same Weight Every Set"}[hint.type]);
+      const ht=mkT("div","hint-type",{weight:"Increase Weight",harder:"Make It Harder",reps:"Push for More Reps",mixed:"Same Weight Every Set",rpe:"Same Reps, Lower RPE"}[hint.type]);
       ht.style.color=hint.color;
       const htxt=mk("div");
       htxt.append(ht,mkT("div","hint-msg",hint.msg),mkT("div","hint-src",lastLabel(last,ex.name)));
@@ -1872,7 +1892,7 @@ function renderGym(container, plan) {
       });
       ri.addEventListener("blur",()=>{ clearTimeout(ri._rest); if(ri.value) restAfterSet(ei,si); });
 
-      const rpei=mk("input","set-rpe"); rpei.type="number"; rpei.placeholder="—"; rpei.value=set.rpe||""; rpei.dataset.k=`rpe:${ei}:${si}`;
+      const rpei=mk("input","set-rpe"); rpei.type="number"; rpei.placeholder=gs.r&&gs.rpe?gs.rpe:"—"; rpei.value=set.rpe||""; rpei.dataset.k=`rpe:${ei}:${si}`;
       rpei.style.color=rpec;
       rpei.addEventListener("input",()=>{
         mutLog(l=>l.exercises[ei].sets[si].rpe=rpei.value);
@@ -2635,10 +2655,17 @@ function updVol() {
     const st=ex&&exStats(ex.sets);
     if(!last||last.other||!st.reps){ el.textContent=""; return; }
     const pv=exStats(last.sets), r=byReps(ex.name,st)||byReps(ex.name,pv), a=r?st.reps:st.vol, b=r?pv.reps:pv.vol;
-    const all=(ex.sets||[]).every(s=>String(s.r||"").trim());
-    el.textContent=all?`Today: ${amtTxt(ex.name,r?{reps:a}:{vol:a})}, ${b?pctTxt(a,b)+" on last time":"no comparison"}${a>b?" ✓":""}`
-      :`Today so far: ${amtTxt(ex.name,r?{reps:a}:{vol:a})} · last time ${amtTxt(ex.name,r?{reps:b}:{vol:b})} in total`;
-    el.style.color=all&&a>b?"#27AE60":"#777";
+    const all=(ex.sets||[]).every(s=>String(s.r||"").trim()), amt=v=>amtTxt(ex.name,r?{reps:v}:{vol:v});
+    if(all){
+      const t=trend(ex.name,ex.sets,last.sets,"last time");
+      el.textContent=t?`Today: ${amt(a)}, ${t.txt}${t.good?" ✓":""}`:`Today: ${amt(a)}`;
+      el.style.color=t&&t.good?"#27AE60":"#777";
+    } else {
+      // RPE so far against the same number of sets last time
+      const done=(ex.sets||[]).filter(s=>String(s.r||"").trim()), ra=avgRpe(done), rb=avgRpe(last.sets.filter(s=>String(s.r||"").trim()).slice(0,done.length));
+      el.textContent=`Today so far: ${amt(a)} · last time ${amt(b)} in total${ra!=null&&rb!=null?` · RPE ${fmtR(ra)} so far vs ${fmtR(rb)}`:""}`;
+      el.style.color="#777";
+    }
   });
 }
 

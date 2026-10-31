@@ -155,7 +155,7 @@ function loadSessions() {
       const exs=[];
       l.exercises.forEach(e=>{
         const name=String(e&&e.name||"").trim(); if(!name) return;
-        const sets=(e.sets||[]).map(s=>({ w:num(s&&s.w), r:num(s&&s.r) })).filter(s=>s.r>0);
+        const sets=(e.sets||[]).map(s=>({ w:num(s&&s.w), r:num(s&&s.r), rpe:num(s&&s.rpe) })).filter(s=>s.r>0);
         if(!sets.length) return;
         const same=exs.find(x=>x.name===name); if(same) same.sets.push(...sets); else exs.push({ name, sets });
       });
@@ -171,6 +171,15 @@ if(!UI.gym&&GYMS.length) UI.gym=SESSIONS.filter(s=>s.gym).slice(-1)[0].gym;
 
 // Best set per session: estimated one-rep max for weighted lifts, else the best reps (or seconds, or lengths)
 const e1 = (w,r) => r<=1 ? w : w*(1+r/30);
+// The same work or more (weight and reps) at an RPE at least half a point lower than a set the session before: progress
+// even without a new best. Gives the pair with the biggest drop, as [newer set, older set].
+function easierThan(a, b) {
+  let best=null;
+  a.filter(x=>x.rpe>0).forEach(x=>b.filter(y=>y.rpe>0&&x.w>=y.w&&x.r>=y.r&&x.rpe<=y.rpe-0.5).forEach(y=>{
+    if(!best||y.rpe-x.rpe>best[1].rpe-best[0].rpe||(y.rpe-x.rpe===best[1].rpe-best[0].rpe&&x.w>best[0].w)) best=[x,y];
+  }));
+  return best;
+}
 function liftSeries(gym) {
   const map=new Map();
   SESSIONS.filter(s=>!gym||s.gym===gym||!s.gym).forEach(s=>s.exs.forEach(e=>{
@@ -369,14 +378,22 @@ function renderReview() {
   const sets=k=>inWk(k).reduce((t,s)=>t+s.exs.reduce((u,e)=>u+e.sets.length,0),0);
   tile("Gym sessions",String(nS),"",`${nP} the week before`);
   tile("Working sets",String(sets(wk)),"",`${sets(prev)} the week before`);
-  // New bests at each gym, and lifts with no new best in their last 3 sessions
-  const prs=[], stuck=[];
+  // New bests at each gym, the same work at a lower RPE, and lifts with neither in their last 3 sessions
+  const prs=[], easier=[], stuck=[];
+  const setTxt=(m,x)=>m.weighted?`${fmtKg(x.w)} kg × ${x.r}`:`${x.r} ${m.unit}`;
+  const eased=(m,q)=>{ const i=m.pts.indexOf(q); return i>0?easierThan(q.sets,m.pts[i-1].sets):null; };
   (GYMS.length?GYMS:[""]).forEach(g=>liftSeries(g).forEach(m=>{
+    const nm=m.name+(GYMS.length>1?` · ${g}`:"");
     const p=m.pts.filter(p=>p.wk===wk&&p.pr&&(!g||p.gym===g)).pop();
-    if(p){ const before=Math.max(...m.pts.filter(q=>q.date<p.date).map(q=>q.v)); prs.push([m.name+(GYMS.length>1?` · ${g}`:""),`${valTxt(m,p.v)} (+${diffTxt(m,p.v-before)})`]); }
+    if(p){ const before=Math.max(...m.pts.filter(q=>q.date<p.date).map(q=>q.v)); prs.push([nm,`${valTxt(m,p.v)} (+${diffTxt(m,p.v-before)})`]); }
+    else {
+      const q=m.pts.filter(q=>q.wk===wk&&(!g||q.gym===g)).pop(), e=q&&eased(m,q);
+      if(e) easier.push([nm,`${setTxt(m,e[0])} at RPE ${e[0].rpe} (was ${e[1].rpe})`]);
+    }
     const n=m.pts.length, lastD=n&&m.pts[n-1].date;
-    if(n>=4&&lastD>=addDays(TODAY,-21)&&Math.max(...m.pts.slice(-3).map(q=>q.v))<=Math.max(...m.pts.slice(0,-3).map(q=>q.v))+1e-9)
-      stuck.push([m.name+(GYMS.length>1?` · ${g}`:""),`best ${valTxt(m,Math.max(...m.pts.map(q=>q.v)))}`]);
+    if(n>=4&&lastD>=addDays(TODAY,-21)&&Math.max(...m.pts.slice(-3).map(q=>q.v))<=Math.max(...m.pts.slice(0,-3).map(q=>q.v))+1e-9
+      &&!m.pts.slice(-3).some(q=>eased(m,q)))
+      stuck.push([nm,`best ${valTxt(m,Math.max(...m.pts.map(q=>q.v)))}`]);
   }));
   tile("New bests",String(prs.length),"",prs.length?"See below":"None yet this week",prs.length?"up":"");
   if(verdict){ const v=el("div","verdict"); if(verdict[0]) v.appendChild(el("b","",verdict[0])); v.appendChild(document.createTextNode(verdict[1])); app.appendChild(v); }
@@ -385,10 +402,14 @@ function renderReview() {
     lists.appendChild(el("div","list-t","New bests (estimated max from your best set)"));
     const c=el("div","card"); c.style.padding="4px 14px"; prs.forEach(([n,v])=>{ const r=el("div","li"); r.append(el("span","",n),el("span","",v)); c.appendChild(r); }); lists.appendChild(c);
   }
+  if(easier.length){
+    lists.appendChild(el("div","list-t","Same work, lower RPE (still progress)"));
+    const c=el("div","card"); c.style.padding="4px 14px"; easier.forEach(([n,v])=>{ const r=el("div","li"); r.append(el("span","",n),el("span","",v)); c.appendChild(r); }); lists.appendChild(c);
+  }
   if(stuck.length){
-    lists.appendChild(el("div","list-t","No new best in the last 3 sessions"));
+    lists.appendChild(el("div","list-t","No new best or easier sets in the last 3 sessions"));
     const c=el("div","card"); c.style.padding="4px 14px"; stuck.forEach(([n,v])=>{ const r=el("div","li"); r.append(el("span","",n),el("span","",v)); c.appendChild(r); }); lists.appendChild(c);
-    lists.appendChild(el("div","tip","Try one more rep at the same weight, or the smallest weight jump for fewer reps. Check sleep and food first if several have stalled together."));
+    lists.appendChild(el("div","tip","Try one more rep at the same weight, the same reps at a lower RPE, or the smallest weight jump for fewer reps. Check sleep and food first if several have stalled together."));
   }
 }
 
