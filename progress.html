@@ -212,6 +212,7 @@ const diffTxt = (m,d) => m.weighted ? `${fmtKg(Math.abs(r05(d)))} kg` : `${Math.
 
 // ── Weigh-ins ─────────────────────────────────────────────────────────────────
 const BW = sGet("bodyweight")||{};
+let IMPORT_MSG = "";
 function bwEntries() {
   return Object.entries(BW).filter(([d,v])=>/^\d{4}-\d{2}-\d{2}$/.test(d)&&num(v)>0)
     .map(([d,v])=>({ date:parseISO(d), kg:num(v) })).sort((a,b)=>a.date-b.date);
@@ -221,6 +222,56 @@ function avgBetween(list, from, to) {
   return { avg:xs.reduce((t,e)=>t+e.kg,0)/xs.length, n:xs.length };
 }
 function rollingAvg(list) { return list.map(e=>({ date:e.date, kg:avgBetween(list,addDays(e.date,-6),e.date).avg })); }
+
+// ── Importing weigh-ins from a scale ──────────────────────────────────────────
+// Any source (a CSV export now, an automatic feed later) hands mergeWeighIns a list of { date:"YYYY-MM-DD", time:"HH:MM", kg }.
+// One reading a day is kept: the earliest before noon, to match "weigh in first thing". Days you already logged are left alone.
+function csvRows(text) {
+  const rows=[]; let row=[], f="", q=false;
+  text=String(text||"").replace(/^\uFEFF/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'&&text[i+1]==='"'){ f+='"'; i++; } else if(c==='"') q=false; else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(f); f=""; }
+    else if(c==="\n"||c==="\r"){ if(c==="\r"&&text[i+1]==="\n") i++; row.push(f); rows.push(row); row=[]; f=""; }
+    else f+=c;
+  }
+  if(f!==""||row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r=>r.some(x=>x.trim()));
+}
+// EufyLife-style exports: a "Time" (or "Date") column and a "Weight (lbs)" or "Weight (kg)" column
+function parseScaleCsv(text) {
+  const rows=csvRows(text); if(rows.length<2) return null;
+  const h=rows[0].map(x=>x.trim().toLowerCase());
+  const ti=h.findIndex(x=>/^(time|date|date ?time|measured at)$/.test(x)), wi=h.findIndex(x=>/^weight\b/.test(x));
+  if(ti<0||wi<0) return null;
+  const lb=/\blbs?\b|pound/.test(h[wi]), out=[];
+  rows.slice(1).forEach(r=>{
+    const t=String(r[ti]||"").trim(), w=num(r[wi]);
+    let m=t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/), y, mo, d;
+    if(m) [y,mo,d]=[m[1],m[2],m[3]];
+    else { m=t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:[ T,]+(\d{1,2}):(\d{2}))?/); if(m) [y,mo,d]=[m[3],m[2],m[1]]; }
+    if(!m||!(w>0)) return;
+    const kg=lb?w/LB:w; if(kg<25||kg>350) return;
+    out.push({ date:`${y}-${pad(+mo)}-${pad(+d)}`, time:m[4]!=null?`${pad(+m[4])}:${m[5]}`:"", kg:Math.round(kg*100)/100 });
+  });
+  return { entries:out, unit:lb?"lb":"kg" };
+}
+function mergeWeighIns(entries) {
+  const byDay=new Map(); let late=new Set();
+  entries.forEach(e=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(e.date)||!(e.kg>0)) return;
+    if(e.time&&e.time>="12:00"){ late.add(e.date); return; }
+    const b=byDay.get(e.date); if(!b||(e.time||"")<(b.time||"")) byDay.set(e.date,e);
+  });
+  late=[...late].filter(d=>!byDay.has(d));
+  let added=0, kept=0;
+  byDay.forEach((e,d)=>{ if(num(BW[d])>0){ kept++; return; } BW[d]=e.kg; added++; });
+  if(added) sSet("bodyweight",BW);
+  const days=[...byDay.keys()].sort();
+  return { added, kept, late:late.length, first:days[0], last:days[days.length-1] };
+}
 
 // ── Range ─────────────────────────────────────────────────────────────────────
 const RANGES = [["4w","4 wk",28],["12w","12 wk",84],["6m","6 mo",182],["all","All",0]];
@@ -446,6 +497,24 @@ function renderWeight() {
   form.append(di,vi,chips([["kg","kg"],["lb","lb"]],v=>PREFS.unit===v,v=>{ PREFS.unit=v; sSet("bwPrefs",PREFS); render(); }),save,msg);
   card.appendChild(form);
   card.appendChild(el("div","tip","Weigh in first thing, after the loo and before food. Three or more mornings a week is enough for the trend."));
+  // Import a smart scale's history (a CSV export, e.g. from EufyLife)
+  const imp=el("div","target"), file=el("input"), ib=el("button","btn-ghost","Import weigh-ins from a scale export (CSV)"), res=el("span","saved");
+  file.type="file"; file.accept=".csv,text/csv,text/plain,text/comma-separated-values"; file.hidden=true;
+  ib.onclick=()=>file.click();
+  file.onchange=()=>{
+    const f=file.files&&file.files[0]; if(!f) return;
+    f.text().then(t=>{
+      const p=parseScaleCsv(t);
+      if(!p||!p.entries.length){ res.style.color="var(--serious)"; res.textContent="That file doesn't look like a scale export: it needs a Time (or Date) column and a Weight column."; return; }
+      const r=mergeWeighIns(p.entries), span=r.first?`${fmtDay(parseISO(r.first))} ${r.first.slice(0,4)} to ${fmtDay(parseISO(r.last))} ${r.last.slice(0,4)}`:"";
+      IMPORT_MSG=[r.added?`Added ${r.added} weigh-in${r.added===1?"":"s"} (${span}).`:"No new weigh-ins: every day in that file is already logged.",
+        r.added&&r.kept?`Kept the ${r.kept} you'd already logged on those days.`:"",
+        r.late?`Skipped ${r.late} day${r.late===1?"":"s"} with only afternoon or evening readings.`:""].filter(Boolean).join(" ");
+      render();
+    }).catch(()=>{ res.textContent="Couldn't read that file."; });
+  };
+  if(IMPORT_MSG){ res.textContent=IMPORT_MSG; IMPORT_MSG=""; }
+  imp.append(ib,file,res); card.appendChild(imp);
   // Target pace
   const tg=el("div","target");
   const tIn=(k)=>{ const i=el("input"); i.type="number"; i.step="0.05"; i.inputMode="decimal"; i.value=fmtKg(toUnit(PREFS[k])); i.setAttribute("aria-label",k==="min"?"Target low":"Target high");
