@@ -1,0 +1,8 @@
+name = "weigh-in-relay"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+TIMEZONE = "Europe/London"
+# Optional: EUFY_PROFILE = "<your scale profile name>"
+# Secrets (set with `npx wrangler secret put NAME` or in the dashboard): EUFY_EMAIL, EUFY_PASSWORD, RELAY_KEY

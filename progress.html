@@ -59,6 +59,7 @@
   .btn { padding: 9px 14px; border-radius: 8px; border: 0; background: var(--text); color: var(--page); font-weight: 700; font-size: 13px; }
   .btn-ghost { background: none; border: 0; color: var(--muted); font-size: 12px; padding: 4px 0; text-decoration: underline; text-underline-offset: 2px; }
   .target { font-size: 12px; color: var(--muted); margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .sync input { flex: 1 1 100%; text-align: left !important; padding: 6px 8px !important; }
   .target input { width: 56px; background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 4px; text-align: center; font-size: 13px; }
   .saved { font-size: 12px; color: var(--good); }
 
@@ -271,6 +272,60 @@ function mergeWeighIns(entries) {
   if(added) sSet("bodyweight",BW);
   const days=[...byDay.keys()].sort();
   return { added, kept, late:late.length, first:days[0], last:days[days.length-1] };
+}
+
+// ── Automatic scale sync, through your own weigh-in relay (see relay/ in the repo) ──
+// Kept per person, and left out of backups because the key is a password.
+const SYNC = Object.assign({ url:"", key:"", last:0, lastDate:"", err:"" }, sGet("scaleSync")||{});
+const saveSync = () => sSet("scaleSync",SYNC);
+let SYNC_BUSY=false, SYNC_MSG="", SYNC_EDIT=false;
+async function syncScale(manual) {
+  if(!SYNC.url||!SYNC.key||SYNC_BUSY) return;
+  SYNC_BUSY=true; if(manual) render();
+  try {
+    let since="";
+    if(SYNC.lastDate){ const d=addDays(parseISO(SYNC.lastDate),-3); since=iso(d); }
+    const u=SYNC.url.replace(/\/+$/,"")+"/weighins"+(since?`?since=${since}`:"");
+    const res=await fetch(u,{ headers:{ Authorization:`Bearer ${SYNC.key}` }, cache:"no-store" });
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(res.status===401?"The relay didn't accept the key.":body.error||`The relay answered ${res.status}.`);
+    const entries=Array.isArray(body.entries)?body.entries:[];
+    const r=mergeWeighIns(entries);
+    SYNC.last=Date.now(); SYNC.err="";
+    const days=entries.map(e=>e.date).filter(Boolean).sort(); if(days.length) SYNC.lastDate=days[days.length-1];
+    saveSync();
+    SYNC_MSG=r.added?`Added ${r.added} weigh-in${r.added===1?"":"s"} from the scale.`:manual?"Up to date: no new weigh-ins.":"";
+  } catch(e) {
+    SYNC.err=String(e&&e.message||"Couldn't reach the relay."); SYNC.last=Date.now(); saveSync();
+  }
+  SYNC_BUSY=false; render();
+}
+function syncBox() {
+  const box=el("div","target sync");
+  if(!SYNC.url||!SYNC.key||SYNC_EDIT){
+    if(!SYNC_EDIT){
+      const b=el("button","btn-ghost","Sync weigh-ins from the scale automatically");
+      b.onclick=()=>{ SYNC_EDIT=true; render(); };
+      box.append(b); return box;
+    }
+    const u=el("input"); u.type="url"; u.placeholder="Relay address (https://…workers.dev)"; u.value=SYNC.url; u.setAttribute("aria-label","Relay address");
+    const k=el("input"); k.type="password"; k.placeholder="Relay key"; k.value=SYNC.key; k.autocomplete="off"; k.setAttribute("aria-label","Relay key");
+    const s=el("button","btn","Save"), c=el("button","btn-ghost","Cancel");
+    s.onclick=()=>{ SYNC.url=u.value.trim(); SYNC.key=k.value.trim(); SYNC.lastDate=""; SYNC.err=""; saveSync(); SYNC_EDIT=false; syncScale(true); };
+    c.onclick=()=>{ SYNC_EDIT=false; render(); };
+    const off=el("button","btn-ghost","Turn off");
+    off.onclick=()=>{ SYNC.url=""; SYNC.key=""; SYNC.lastDate=""; saveSync(); SYNC_EDIT=false; render(); };
+    box.append(u,k,s,c); if(SYNC.url) box.append(off); return box;
+  }
+  const when=SYNC.last?new Date(SYNC.last):null;
+  const ago=when?(dayStart(when)-TODAY===0?`today at ${when.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:fmtDay(when)):"never";
+  const line=el("span","",SYNC_BUSY?"Scale sync: checking…":`Scale sync: checked ${ago}`);
+  const now=el("button","btn-ghost","Sync now"); now.disabled=SYNC_BUSY; now.onclick=()=>syncScale(true);
+  const ch=el("button","btn-ghost","Change"); ch.onclick=()=>{ SYNC_EDIT=true; render(); };
+  const msg=el("span","saved");
+  if(SYNC.err&&!SYNC_BUSY){ msg.style.color="var(--serious)"; msg.textContent=SYNC.err; }
+  else if(SYNC_MSG){ msg.textContent=SYNC_MSG; SYNC_MSG=""; }
+  box.append(line,now,ch,msg); return box;
 }
 
 // ── Range ─────────────────────────────────────────────────────────────────────
@@ -516,6 +571,7 @@ function renderWeight() {
   };
   if(IMPORT_MSG){ res.textContent=IMPORT_MSG; IMPORT_MSG=""; }
   imp.append(ib,file,res); card.appendChild(imp);
+  card.appendChild(syncBox());
   // Target pace
   const tg=el("div","target");
   const tIn=(k)=>{ const i=el("input"); i.type="number"; i.step="0.05"; i.inputMode="decimal"; i.value=fmtKg(toUnit(PREFS[k])); i.setAttribute("aria-label",k==="min"?"Target low":"Target high");
@@ -598,6 +654,8 @@ function renderLifts() {
 
 let rz; window.addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>DRAWS.forEach(f=>f()),150); });
 render();
+// New weigh-ins arrive whenever this page opens (at most every 5 minutes)
+if(SYNC.url&&SYNC.key&&Date.now()-SYNC.last>5*60000) syncScale(false);
 </script>
 </body>
 </html>
