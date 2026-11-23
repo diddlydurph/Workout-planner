@@ -405,24 +405,25 @@ function renderReview() {
     if(delta) t.appendChild(el("div","tile-delta"+(cls?" "+cls:""),delta));
     tiles.appendChild(t);
   };
-  // Bodyweight: 7-day average to the end of the week (or today), against the 7 days before
+  // Bodyweight: 14-day average to the end of the week (or today), against the 14 days before. Two weeks of
+  // weigh-ins keep one low or high morning from flipping the verdict; the change is shown per week.
   const list=bwEntries(), end=sun<TODAY?sun:TODAY;
-  const a=avgBetween(list,addDays(end,-6),end), b=avgBetween(list,addDays(end,-13),addDays(end,-7));
+  const a=avgBetween(list,addDays(end,-13),end), b=avgBetween(list,addDays(end,-27),addDays(end,-14));
   let verdict=null;
   if(a){
-    const ch=b?a.avg-b.avg:null;
-    tile("Bodyweight, 7-day average",fmtKg(toUnit(a.avg)),PREFS.unit,
-      ch==null?"Not enough weigh-ins the week before":`${ch>=0?"▲ +":"▼ −"}${fmtKg(Math.abs(toUnit(ch)))} ${PREFS.unit} on the week before`,
+    const ch=b?(a.avg-b.avg)/2:null;
+    tile("Bodyweight, 2-week average",fmtKg(toUnit(a.avg)),PREFS.unit,
+      ch==null?"Not enough weigh-ins the 2 weeks before":`${ch>=0?"▲ +":"▼ −"}${fmtKg(Math.abs(toUnit(ch)))} ${PREFS.unit} a week on the 2 weeks before`,
       ch==null?"":ch>0?"up":"down");
-    if(a.n<3||!b||b.n<3) verdict=["","Weigh in on at least 3 mornings a week to see a reliable trend."];
+    if(a.n<4||!b||b.n<4) verdict=["","Weigh in on at least 3 mornings a week for two weeks to see a reliable trend."];
     else {
       const lo=PREFS.min, hi=PREFS.max, sg=v=>(v>0?"+":v<0?"−":"")+fmtKg(Math.abs(toUnit(v)));
-      const tgt=`target ${sg(lo)} to ${sg(hi)} ${PREFS.unit} a week`, gain=hi>0;
-      verdict=ch<lo-0.05?[gain?"Gaining slower than planned":"Losing faster than planned",` (${tgt}). If next week says the same, add about 150 kcal a day.`]
-        :ch>hi+0.05?[gain?"Gaining faster than planned":"Losing slower than planned",` (${tgt}). If next week says the same, take off about 150 kcal a day.`]
+      const tgt=`target ${sg(lo)} to ${sg(hi)} ${PREFS.unit} a week`, gain=hi>0, wait=" Then leave it two weeks before changing again.";
+      verdict=ch<lo-0.05?[gain?"Gaining slower than planned":"Losing faster than planned",` (${tgt}). Add about 150 kcal a day.${wait}`]
+        :ch>hi+0.05?[gain?"Gaining faster than planned":"Losing slower than planned",` (${tgt}). Take off about 150 kcal a day.${wait}`]
         :["On track",` (${tgt}). Keep eating as you are.`];
     }
-  } else { tile("Bodyweight, 7-day average","—","","No weigh-ins this week"); verdict=["","Log weigh-ins below to see your trend."]; }
+  } else { tile("Bodyweight, 2-week average","—","","No weigh-ins in the last 2 weeks"); verdict=["","Log weigh-ins below to see your trend."]; }
   // Sessions and working sets, against the week before
   const inWk=k=>SESSIONS.filter(s=>s.wk===k);
   const nS=new Set(inWk(wk).map(s=>+s.date)).size, nP=new Set(inWk(prev).map(s=>+s.date)).size;
